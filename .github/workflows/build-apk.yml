@@ -9,9 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -22,6 +19,282 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.4'
+
+      - name: Generate Complete Android Project
+        run: |
+          mkdir -p app/src/main/java/com/example/weekdayintervalalarm
+
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          kotlin.code.style=official
+          EOF
+
+          cat << 'EOF' > settings.gradle.kts
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "Weekday45mAlarm"
+          include(":app")
+          EOF
+
+          cat << 'EOF' > build.gradle.kts
+          plugins {
+              id("com.android.application") version "8.2.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+          }
+          EOF
+
+          cat << 'EOF' > app/build.gradle.kts
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+          android {
+              namespace = "com.example.weekdayintervalalarm"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.example.weekdayintervalalarm"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          dependencies {
+              implementation("androidx.core:core-ktx:1.12.0")
+              implementation("androidx.appcompat:appcompat:1.6.1")
+              implementation("com.google.android.material:material:1.11.0")
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+              <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+              <uses-permission android:name="android.permission.VIBRATE" />
+              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <application
+                  android:allowBackup="true"
+                  android:label="Weekday 45m Alarm"
+                  android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+                  <activity android:name=".AlarmRingActivity" android:exported="false" android:showWhenLocked="true" android:turnScreenOn="true" />
+                  <receiver android:name=".AlarmReceiver" android:exported="false" />
+                  <receiver android:name=".BootReceiver" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.BOOT_COMPLETED" />
+                      </intent-filter>
+                  </receiver>
+                  <service android:name=".AlarmService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
+              </application>
+          </manifest>
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/example/weekdayintervalalarm/AlarmScheduler.kt
+          package com.example.weekdayintervalalarm
+          import android.app.AlarmManager
+          import android.app.PendingIntent
+          import android.content.Context
+          import android.content.Intent
+          import android.os.Build
+          import java.time.DayOfWeek
+          import java.time.LocalDateTime
+          import java.time.LocalTime
+          import java.time.ZoneId
+
+          object AlarmScheduler {
+              private const val REQUEST_CODE = 1001
+              private val START_TIME = LocalTime.of(9, 0)
+              private val END_TIME = LocalTime.of(18, 0)
+              private const val INTERVAL_MINUTES = 45L
+
+              fun scheduleNextAlarm(context: Context) {
+                  val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) return
+                  val nextTriggerTime = calculateNextWeekdaySlot(LocalDateTime.now())
+                  val triggerMillis = nextTriggerTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                  val intent = Intent(context, AlarmReceiver::class.java)
+                  val pendingIntent = PendingIntent.getBroadcast(context, REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                  alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerMillis, pendingIntent), pendingIntent)
+                  context.getSharedPreferences("alarm_prefs", Context.MODE_PRIVATE).edit().putBoolean("is_enabled", true).putLong("next_trigger", triggerMillis).apply()
+              }
+
+              fun cancelAlarm(context: Context) {
+                  val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                  val intent = Intent(context, AlarmReceiver::class.java)
+                  val pendingIntent = PendingIntent.getBroadcast(context, REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                  alarmManager.cancel(pendingIntent)
+                  context.getSharedPreferences("alarm_prefs", Context.MODE_PRIVATE).edit().putBoolean("is_enabled", false).apply()
+              }
+
+              fun calculateNextWeekdaySlot(now: LocalDateTime): LocalDateTime {
+                  val candidateDate = now.toLocalDate()
+                  if (candidateDate.dayOfWeek == DayOfWeek.SATURDAY) return candidateDate.plusDays(2).atTime(START_TIME)
+                  if (candidateDate.dayOfWeek == DayOfWeek.SUNDAY) return candidateDate.plusDays(1).atTime(START_TIME)
+                  var slot = candidateDate.atTime(START_TIME)
+                  val cutoff = candidateDate.atTime(END_TIME)
+                  while (!slot.isAfter(cutoff)) {
+                      if (slot.isAfter(now)) return slot
+                      slot = slot.plusMinutes(INTERVAL_MINUTES)
+                  }
+                  var nextDay = candidateDate.plusDays(1)
+                  while (nextDay.dayOfWeek == DayOfWeek.SATURDAY || nextDay.dayOfWeek == DayOfWeek.SUNDAY) nextDay = nextDay.plusDays(1)
+                  return nextDay.atTime(START_TIME)
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/example/weekdayintervalalarm/AlarmReceiver.kt
+          package com.example.weekdayintervalalarm
+          import android.content.BroadcastReceiver
+          import android.content.Context
+          import android.content.Intent
+          import androidx.core.content.ContextCompat
+
+          class AlarmReceiver : BroadcastReceiver() {
+              override fun onReceive(context: Context, intent: Intent) {
+                  AlarmScheduler.scheduleNextAlarm(context)
+                  ContextCompat.startForegroundService(context, Intent(context, AlarmService::class.java))
+              }
+          }
+
+          class BootReceiver : BroadcastReceiver() {
+              override fun onReceive(context: Context, intent: Intent) {
+                  if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+                      if (context.getSharedPreferences("alarm_prefs", Context.MODE_PRIVATE).getBoolean("is_enabled", false)) {
+                          AlarmScheduler.scheduleNextAlarm(context)
+                      }
+                  }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/example/weekdayintervalalarm/AlarmService.kt
+          package com.example.weekdayintervalalarm
+          import android.app.*
+          import android.content.Context
+          import android.content.Intent
+          import android.media.AudioAttributes
+          import android.media.MediaPlayer
+          import android.media.RingtoneManager
+          import android.os.*
+          import androidx.core.app.NotificationCompat
+
+          class AlarmService : Service() {
+              private var mediaPlayer: MediaPlayer? = null
+              private var vibrator: Vibrator? = null
+              companion object {
+                  const val CHANNEL_ID = "weekday_45m_alarm_channel"
+                  const val ACTION_STOP = "ACTION_STOP_ALARM"
+              }
+              override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+                  if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      val channel = NotificationChannel(CHANNEL_ID, "Weekday Interval Alarms", NotificationManager.IMPORTANCE_HIGH).apply { setSound(null, null) }
+                      getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+                  }
+                  val fullScreenPendingIntent = PendingIntent.getActivity(this, 0, Intent(this, AlarmRingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                  val stopPendingIntent = PendingIntent.getService(this, 1, Intent(this, AlarmService::class.java).apply { action = ACTION_STOP }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                  val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                      .setContentTitle("45-Minute Interval Alarm")
+                      .setContentText("Time for your scheduled check-in.")
+                      .setPriority(NotificationCompat.PRIORITY_MAX)
+                      .setCategory(NotificationCompat.CATEGORY_ALARM)
+                      .setFullScreenIntent(fullScreenPendingIntent, true)
+                      .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss", stopPendingIntent)
+                      .setOngoing(true).build()
+                  startForeground(2001, notification)
+                  val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                  mediaPlayer = MediaPlayer().apply {
+                      setDataSource(applicationContext, alarmUri)
+                      setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                      isLooping = true; prepare(); start()
+                  }
+                  vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator else @Suppress("DEPRECATION") getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                  vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0))
+                  return START_STICKY
+              }
+              override fun onDestroy() { mediaPlayer?.stop(); mediaPlayer?.release(); vibrator?.cancel(); super.onDestroy() }
+              override fun onBind(intent: Intent?): IBinder? = null
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/example/weekdayintervalalarm/MainActivity.kt
+          package com.example.weekdayintervalalarm
+          import android.Manifest
+          import android.app.AlarmManager
+          import android.content.Context
+          import android.content.Intent
+          import android.os.Build
+          import android.os.Bundle
+          import android.provider.Settings
+          import android.widget.Button
+          import android.widget.LinearLayout
+          import android.widget.TextView
+          import androidx.appcompat.app.AppCompatActivity
+          import java.text.SimpleDateFormat
+          import java.util.*
+
+          class MainActivity : AppCompatActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  val statusText = TextView(this).apply { textSize = 18f; setPadding(48, 80, 48, 40) }
+                  val startBtn = Button(this).apply { text = "Start Weekday 45m Alarms" }
+                  val stopBtn = Button(this).apply { text = "Stop Alarms" }
+                  setContentView(LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 48, 48, 48); addView(statusText); addView(startBtn); addView(stopBtn) })
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+                  updateStatusUI(statusText)
+                  startBtn.setOnClickListener {
+                      val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                      else { AlarmScheduler.scheduleNextAlarm(this); updateStatusUI(statusText) }
+                  }
+                  stopBtn.setOnClickListener { AlarmScheduler.cancelAlarm(this); stopService(Intent(this, AlarmService::class.java)); updateStatusUI(statusText) }
+              }
+              private fun updateStatusUI(statusText: TextView) {
+                  val prefs = getSharedPreferences("alarm_prefs", Context.MODE_PRIVATE)
+                  val enabled = prefs.getBoolean("is_enabled", false)
+                  val nextMillis = prefs.getLong("next_trigger", 0L)
+                  statusText.text = if (enabled && nextMillis > 0) "Status: ACTIVE\nNext Alarm: " + SimpleDateFormat("EEE, MMM d 'at' hh:mm a", Locale.getDefault()).format(Date(nextMillis)) else "Status: INACTIVE"
+              }
+          }
+
+          class AlarmRingActivity : AppCompatActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(Button(this).apply { text = "DISMISS ALARM"; textSize = 24f; setOnClickListener { stopService(Intent(this@AlarmRingActivity, AlarmService::class.java)); finish() } })
+              }
+          }
+          EOF
 
       - name: Build Debug APK
         run: gradle assembleDebug
