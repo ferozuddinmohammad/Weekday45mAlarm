@@ -1652,6 +1652,12 @@ jobs:
                       .apply()
               }
 
+              private fun getRecentFiles(): JSONArray {
+                  val raw = getSharedPreferences("m365_prefs", Context.MODE_PRIVATE)
+                      .getString("recent_files", "[]") ?: "[]"
+                  return JSONArray(raw)
+              }
+
               private fun recordRecentFile(name: String, type: String) {
                   val prefs = getSharedPreferences("m365_prefs", Context.MODE_PRIVATE)
                   val arr = JSONArray(prefs.getString("recent_files", "[]") ?: "[]")
