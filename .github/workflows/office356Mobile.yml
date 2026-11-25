@@ -1,4 +1,4 @@
-name: Build Office365Pocket APK
+name: Build Office365Pocket Mobile APK
 
 on:
   push:
