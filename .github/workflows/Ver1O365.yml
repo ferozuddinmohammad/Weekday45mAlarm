@@ -1,0 +1,3102 @@
+name: Build Ver1_Office365Pocket
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.4'
+
+      - name: Generate Full Microsoft 365 Pocket Android Project
+        run: |
+          mkdir -p app/src/main/java/com/example/officepocket
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/xml
+
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          kotlin.code.style=official
+          EOF
+
+          cat << 'EOF' > settings.gradle.kts
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "Persona360"
+          include(":app")
+          EOF
+
+          cat << 'EOF' > build.gradle.kts
+          plugins {
+              id("com.android.application") version "8.2.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+          }
+          EOF
+
+          cat << 'EOF' > app/build.gradle.kts
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+          android {
+              namespace = "com.example.officepocket"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.example.officepocket"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 4
+                  versionName = "1.0.0"
+                  multiDexEnabled = true
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+              packaging {
+                  resources {
+                      excludes += setOf(
+                          "META-INF/DEPENDENCIES",
+                          "META-INF/LICENSE",
+                          "META-INF/LICENSE.txt",
+                          "META-INF/license.txt",
+                          "META-INF/NOTICE",
+                          "META-INF/NOTICE.txt",
+                          "META-INF/notice.txt",
+                          "META-INF/*.SF",
+                          "META-INF/*.DSA",
+                          "META-INF/*.RSA"
+                      )
+                  }
+              }
+          }
+          dependencies {
+              implementation("androidx.core:core-ktx:1.12.0")
+              implementation("androidx.appcompat:appcompat:1.6.1")
+              implementation("com.google.android.material:material:1.11.0")
+              implementation("org.apache.poi:poi:5.2.5")
+              implementation("org.apache.poi:poi-ooxml:5.2.5")
+              implementation("org.apache.poi:poi-scratchpad:5.2.5")
+              implementation("org.apache.xmlbeans:xmlbeans:5.2.0")
+              implementation("javax.xml.stream:stax-api:1.0-2")
+              implementation("com.fasterxml:aalto-xml:1.3.2")
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/res/drawable/ic_office365_launcher.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#D83B01"
+                  android:pathData="M0,0h108v108h-108z" />
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M62,20L28,33v42l14,-4V39l20,-6v44l-34,-9l34,19l18,-6V26z" />
+          </vector>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/xml/file_paths.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths>
+              <cache-path name="shared_docs" path="." />
+              <files-path name="internal_docs" path="." />
+          </paths>
+          EOF
+
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.CAMERA" />
+              <uses-feature android:name="android.hardware.camera" android:required="false" />
+              <application
+                  android:allowBackup="true"
+                  android:largeHeap="true"
+                  android:icon="@drawable/ic_office365_launcher"
+                  android:roundIcon="@drawable/ic_office365_launcher"
+                  android:label="Microsoft 365 Pocket"
+                  android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+                  <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="${applicationId}.fileprovider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data
+                          android:name="android.support.FILE_PROVIDER_PATHS"
+                          android:resource="@xml/file_paths" />
+                  </provider>
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      <intent-filter>
+                          <action android:name="android.intent.action.VIEW" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <data android:mimeType="application/msword" />
+                          <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                          <data android:mimeType="application/vnd.ms-excel" />
+                          <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                          <data android:mimeType="application/vnd.ms-powerpoint" />
+                          <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+                          <data android:mimeType="application/pdf" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/example/officepocket/OfficeEngine.kt
+          package com.example.officepocket
+
+          import android.content.Context
+          import android.graphics.*
+          import android.graphics.pdf.PdfDocument
+          import android.graphics.pdf.PdfRenderer
+          import android.net.Uri
+          import android.os.ParcelFileDescriptor
+          import android.provider.OpenableColumns
+          import android.text.Html
+          import android.text.Spanned
+          import android.text.style.StyleSpan
+          import android.text.style.UnderlineSpan
+          import org.apache.poi.hslf.usermodel.HSLFSlideShow
+          import org.apache.poi.hslf.usermodel.HSLFTextShape
+          import org.apache.poi.hssf.usermodel.HSSFWorkbook
+          import org.apache.poi.hwpf.HWPFDocument
+          import org.apache.poi.hwpf.extractor.WordExtractor
+          import org.apache.poi.ss.usermodel.CellType
+          import org.apache.poi.ss.usermodel.DataFormatter
+          import org.apache.poi.ss.usermodel.Workbook
+          import org.apache.poi.ss.usermodel.WorkbookFactory
+          import org.apache.poi.xslf.usermodel.XMLSlideShow
+          import org.apache.poi.xslf.usermodel.XSLFTextShape
+          import org.apache.poi.xssf.usermodel.XSSFWorkbook
+          import org.apache.poi.xwpf.usermodel.ParagraphAlignment
+          import org.apache.poi.xwpf.usermodel.UnderlinePatterns
+          import org.apache.poi.xwpf.usermodel.XWPFDocument
+          import org.json.JSONArray
+          import java.io.ByteArrayInputStream
+          import java.io.File
+          import java.io.FileOutputStream
+          import java.io.OutputStream
+
+          enum class DocType { WORD_DOC, WORD_DOCX, EXCEL_XLS, EXCEL_XLSX, PPT_PPT, PPT_PPTX, PDF_DOC }
+
+          enum class SlideTheme(
+              val label: String,
+              val bgColorHex: String,
+              val titleColorHex: String,
+              val bodyColorHex: String,
+              val accentColorHex: String,
+              val poiBgRgb: ByteArray,
+              val poiTitleRgb: ByteArray,
+              val poiBodyRgb: ByteArray
+          ) {
+              CLASSIC_LIGHT(
+                  "Classic White",
+                  "#FFFFFF", "#1E293B", "#334155", "#C43E1C",
+                  byteArrayOf(255.toByte(), 255.toByte(), 255.toByte()),
+                  byteArrayOf(30.toByte(), 41.toByte(), 59.toByte()),
+                  byteArrayOf(51.toByte(), 65.toByte(), 85.toByte())
+              ),
+              MIDNIGHT_EXEC(
+                  "Midnight Executive",
+                  "#0F172A", "#38BDF8", "#F1F5F9", "#0284C7",
+                  byteArrayOf(15.toByte(), 23.toByte(), 42.toByte()),
+                  byteArrayOf(56.toByte(), 189.toByte(), 248.toByte()),
+                  byteArrayOf(241.toByte(), 245.toByte(), 249.toByte())
+              ),
+              CRIMSON_KEYNOTE(
+                  "Crimson Keynote",
+                  "#450A0A", "#FDE047", "#FEF2F2", "#DC2626",
+                  byteArrayOf(69.toByte(), 10.toByte(), 10.toByte()),
+                  byteArrayOf(253.toByte(), 224.toByte(), 71.toByte()),
+                  byteArrayOf(254.toByte(), 242.toByte(), 242.toByte())
+              ),
+              EMERALD_BOARD(
+                  "Emerald Boardroom",
+                  "#064E3B", "#6EE7B7", "#ECFDF5", "#10B981",
+                  byteArrayOf(6.toByte(), 78.toByte(), 59.toByte()),
+                  byteArrayOf(110.toByte(), 231.toByte(), 183.toByte()),
+                  byteArrayOf(236.toByte(), 253.toByte(), 245.toByte())
+              ),
+              ROYAL_PARCHMENT(
+                  "Warm Parchment",
+                  "#FEFCE8", "#78350F", "#451A03", "#D97706",
+                  byteArrayOf(254.toByte(), 252.toByte(), 232.toByte()),
+                  byteArrayOf(120.toByte(), 53.toByte(), 15.toByte()),
+                  byteArrayOf(69.toByte(), 26.toByte(), 3.toByte())
+              )
+          }
+
+          data class SlideItem(
+              var title: String,
+              var body: String,
+              var speakerNotes: String = "",
+              var theme: SlideTheme = SlideTheme.CLASSIC_LIGHT,
+              var titleBold: Boolean = true,
+              var titleItalic: Boolean = false,
+              var bodyBold: Boolean = false,
+              var bodyItalic: Boolean = false,
+              var align: String = "LEFT"
+          )
+
+          data class LoadedOfficeFile(
+              val fileName: String,
+              val type: DocType,
+              val sourceUri: Uri?,
+              var wordHtml: String = "",
+              var wordAlign: String = "LEFT",
+              var wordFontSize: Int = 12,
+              var sheets: MutableMap<String, MutableList<MutableList<String>>> = linkedMapOf(),
+              var slides: MutableList<SlideItem> = mutableListOf(),
+              var pdfCachedPath: String? = null,
+              var pdfPageCount: Int = 0,
+              var pdfAnnotations: MutableList<String> = mutableListOf(),
+              var pdfHighlights: MutableList<String> = mutableListOf(),
+              var pdfSignatures: MutableMap<Int, Bitmap> = mutableMapOf()
+          )
+
+          object OfficeEngine {
+
+              init {
+                  System.setProperty("org.apache.poi.javax.xml.stream.XMLInputFactory", "com.fasterxml.aalto.stax.InputFactoryImpl")
+                  System.setProperty("org.apache.poi.javax.xml.stream.XMLOutputFactory", "com.fasterxml.aalto.stax.OutputFactoryImpl")
+                  System.setProperty("org.apache.poi.javax.xml.stream.XMLEventFactory", "com.fasterxml.aalto.stax.EventFactoryImpl")
+              }
+
+              fun getFileName(context: Context, uri: Uri): String {
+                  var name = "Document"
+                  context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                      val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                      if (idx != -1 && cursor.moveToFirst()) {
+                          name = cursor.getString(idx) ?: name
+                      }
+                  }
+                  return name
+              }
+
+              fun detectType(fileName: String, mimeType: String?): DocType {
+                  val lower = fileName.lowercase()
+                  return when {
+                      lower.endsWith(".pdf") -> DocType.PDF_DOC
+                      lower.endsWith(".docx") -> DocType.WORD_DOCX
+                      lower.endsWith(".doc") -> DocType.WORD_DOC
+                      lower.endsWith(".xlsx") -> DocType.EXCEL_XLSX
+                      lower.endsWith(".xls") -> DocType.EXCEL_XLS
+                      lower.endsWith(".pptx") -> DocType.PPT_PPTX
+                      lower.endsWith(".ppt") -> DocType.PPT_PPT
+                      mimeType?.contains("pdf") == true -> DocType.PDF_DOC
+                      mimeType?.contains("wordprocessingml") == true -> DocType.WORD_DOCX
+                      mimeType?.contains("msword") == true -> DocType.WORD_DOC
+                      mimeType?.contains("spreadsheetml") == true -> DocType.EXCEL_XLSX
+                      mimeType?.contains("ms-excel") == true -> DocType.EXCEL_XLS
+                      mimeType?.contains("presentationml") == true -> DocType.PPT_PPTX
+                      mimeType?.contains("ms-powerpoint") == true -> DocType.PPT_PPT
+                      else -> DocType.WORD_DOCX
+                  }
+              }
+
+              fun loadDocument(context: Context, uri: Uri): LoadedOfficeFile {
+                  val name = getFileName(context, uri)
+                  val mime = context.contentResolver.getType(uri)
+                  val type = detectType(name, mime)
+                  val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                      ?: throw IllegalStateException("Cannot read file stream")
+
+                  return when (type) {
+                      DocType.PDF_DOC -> {
+                          val cacheFile = File(context.cacheDir, "active_view_${System.currentTimeMillis()}.pdf")
+                          FileOutputStream(cacheFile).use { it.write(bytes) }
+                          var pageCount = 1
+                          ParcelFileDescriptor.open(cacheFile, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                              PdfRenderer(pfd).use { renderer ->
+                                  pageCount = maxOf(renderer.pageCount, 1)
+                              }
+                          }
+                          LoadedOfficeFile(
+                              fileName = name,
+                              type = type,
+                              sourceUri = uri,
+                              pdfCachedPath = cacheFile.absolutePath,
+                              pdfPageCount = pageCount,
+                              pdfAnnotations = MutableList(pageCount) { "" },
+                              pdfHighlights = MutableList(pageCount) { "" }
+                          )
+                      }
+                      DocType.WORD_DOCX -> {
+                          XWPFDocument(ByteArrayInputStream(bytes)).use { doc ->
+                              val sb = StringBuilder()
+                              for (p in doc.paragraphs) {
+                                  for (run in p.runs) {
+                                      var t = Html.escapeHtml(run.text() ?: "")
+                                      if (run.isBold) t = "<b>$t</b>"
+                                      if (run.isItalic) t = "<i>$t</i>"
+                                      if (run.underline != UnderlinePatterns.NONE) t = "<u>$t</u>"
+                                      sb.append(t)
+                                  }
+                                  sb.append("<br>")
+                              }
+                              LoadedOfficeFile(name, type, uri, wordHtml = sb.toString())
+                          }
+                      }
+                      DocType.WORD_DOC -> {
+                          HWPFDocument(ByteArrayInputStream(bytes)).use { doc ->
+                              val extractor = WordExtractor(doc)
+                              val html = extractor.paragraphText
+                                  .joinToString("<br>") { Html.escapeHtml(it.replace("\r", "").trimEnd('\n')) }
+                              LoadedOfficeFile(name, type, uri, wordHtml = html)
+                          }
+                      }
+                      DocType.EXCEL_XLSX, DocType.EXCEL_XLS -> {
+                          WorkbookFactory.create(ByteArrayInputStream(bytes)).use { wb ->
+                              val formatter = DataFormatter()
+                              val sheetMap = linkedMapOf<String, MutableList<MutableList<String>>>()
+                              for (sIdx in 0 until wb.numberOfSheets) {
+                                  val sheet = wb.getSheetAt(sIdx)
+                                  val rowsList = mutableListOf<MutableList<String>>()
+                                  val maxRows = maxOf(sheet.lastRowNum + 1, 16)
+                                  var maxCols = 7
+                                  for (r in 0..sheet.lastRowNum) {
+                                      val row = sheet.getRow(r)
+                                      if (row != null && row.lastCellNum > maxCols) {
+                                          maxCols = row.lastCellNum.toInt()
+                                      }
+                                  }
+                                  for (r in 0 until maxRows) {
+                                      val row = sheet.getRow(r)
+                                      val cells = mutableListOf<String>()
+                                      for (c in 0 until maxCols) {
+                                          val cell = row?.getCell(c)
+                                          val strVal = when {
+                                              cell == null -> ""
+                                              cell.cellType == CellType.FORMULA -> {
+                                                  try { "=" + cell.cellFormula } catch (_: Exception) { formatter.formatCellValue(cell) }
+                                              }
+                                              else -> formatter.formatCellValue(cell)
+                                          }
+                                          cells.add(strVal)
+                                      }
+                                      rowsList.add(cells)
+                                  }
+                                  sheetMap[sheet.sheetName] = rowsList
+                              }
+                              if (sheetMap.isEmpty()) sheetMap["Sheet1"] = MutableList(16) { MutableList(7) { "" } }
+                              LoadedOfficeFile(name, type, uri, sheets = sheetMap)
+                          }
+                      }
+                      DocType.PPT_PPTX -> {
+                          XMLSlideShow(ByteArrayInputStream(bytes)).use { ppt ->
+                              val slideList = mutableListOf<SlideItem>()
+                              for ((idx, slide) in ppt.slides.withIndex()) {
+                                  val texts = mutableListOf<String>()
+                                  for (shape in slide.shapes) {
+                                      if (shape is XSLFTextShape) {
+                                          val t = shape.text?.trim() ?: ""
+                                          if (t.isNotEmpty()) texts.add(t)
+                                      }
+                                  }
+                                  val title = texts.firstOrNull() ?: "Slide ${idx + 1}"
+                                  val body = if (texts.size > 1) texts.drop(1).joinToString("\n") else ""
+                                  slideList.add(SlideItem(title, body))
+                              }
+                              if (slideList.isEmpty()) slideList.add(SlideItem("Slide 1", ""))
+                              LoadedOfficeFile(name, type, uri, slides = slideList)
+                          }
+                      }
+                      DocType.PPT_PPT -> {
+                          HSLFSlideShow(ByteArrayInputStream(bytes)).use { ppt ->
+                              val slideList = mutableListOf<SlideItem>()
+                              for ((idx, slide) in ppt.slides.withIndex()) {
+                                  val texts = mutableListOf<String>()
+                                  for (shape in slide.shapes) {
+                                      if (shape is HSLFTextShape) {
+                                          val t = shape.text?.trim() ?: ""
+                                          if (t.isNotEmpty()) texts.add(t)
+                                      }
+                                  }
+                                  val title = texts.firstOrNull() ?: "Slide ${idx + 1}"
+                                  val body = if (texts.size > 1) texts.drop(1).joinToString("\n") else ""
+                                  slideList.add(SlideItem(title, body))
+                              }
+                              if (slideList.isEmpty()) slideList.add(SlideItem("Slide 1", ""))
+                              LoadedOfficeFile(name, type, uri, slides = slideList)
+                          }
+                      }
+                  }
+              }
+
+              // Generate shareable Word (.docx) file from To Do List
+              fun exportTodoListAsWordFile(context: Context, todoArray: JSONArray): File {
+                  val outFile = File(context.cacheDir, "Microsoft_ToDo_List.docx")
+                  XWPFDocument().use { doc ->
+                      val headerP = doc.createParagraph()
+                      val headerRun = headerP.createRun()
+                      headerRun.setText("Microsoft 365 — To Do Checklist")
+                      headerRun.isBold = true
+                      headerRun.fontSize = 16
+
+                      for (i in 0 until todoArray.length()) {
+                          val obj = todoArray.getJSONObject(i)
+                          val title = obj.getString("title")
+                          val note = obj.optString("note", "")
+                          val done = obj.optBoolean("done", false)
+                          val starred = obj.optBoolean("starred", false)
+
+                          val p = doc.createParagraph()
+                          val run = p.createRun()
+                          val statusBox = if (done) "[✓]" else "[  ]"
+                          val starPrefix = if (starred) "★ " else ""
+                          run.setText("$statusBox $starPrefix$title")
+                          run.isBold = starred
+                          run.isStrikeThrough = done
+                          run.fontSize = 12
+
+                          if (note.isNotEmpty()) {
+                              val noteP = doc.createParagraph()
+                              val noteRun = noteP.createRun()
+                              noteRun.setText("      Note: $note")
+                              noteRun.isItalic = true
+                              noteRun.fontSize = 10
+                          }
+                      }
+                      FileOutputStream(outFile).use { doc.write(it) }
+                  }
+                  return outFile
+              }
+
+              // Generate shareable Plain Text (.txt) file from To Do List
+              fun exportTodoListAsTxtFile(context: Context, todoArray: JSONArray): File {
+                  val outFile = File(context.cacheDir, "Microsoft_ToDo_List.txt")
+                  val sb = StringBuilder()
+                  sb.appendLine("MICROSOFT 365 — TO DO CHECKLIST")
+                  sb.appendLine("==================================")
+                  for (i in 0 until todoArray.length()) {
+                      val obj = todoArray.getJSONObject(i)
+                      val title = obj.getString("title")
+                      val note = obj.optString("note", "")
+                      val done = obj.optBoolean("done", false)
+                      val starred = obj.optBoolean("starred", false)
+                      val mark = if (done) "[x]" else "[ ]"
+                      val star = if (starred) " *IMPORTANT*" else ""
+                      sb.appendLine("$mark $title$star")
+                      if (note.isNotEmpty()) sb.appendLine("    - $note")
+                  }
+                  outFile.writeText(sb.toString())
+                  return outFile
+              }
+
+              fun evaluateCellDisplay(raw: String, grid: List<List<String>>): String {
+                  val trimmed = raw.trim()
+                  if (!trimmed.startsWith("=")) return raw
+                  val expr = trimmed.substring(1).trim().uppercase()
+                  return try {
+                      when {
+                          expr.startsWith("SUM(") && expr.endsWith(")") -> {
+                              val vals = extractRangeValues(expr.removePrefix("SUM(").removeSuffix(")"), grid)
+                              formatNum(vals.sum())
+                          }
+                          expr.startsWith("AVERAGE(") && expr.endsWith(")") -> {
+                              val vals = extractRangeValues(expr.removePrefix("AVERAGE(").removeSuffix(")"), grid)
+                              if (vals.isEmpty()) "0" else formatNum(vals.average())
+                          }
+                          expr.startsWith("MIN(") && expr.endsWith(")") -> {
+                              val vals = extractRangeValues(expr.removePrefix("MIN(").removeSuffix(")"), grid)
+                              formatNum(vals.minOrNull() ?: 0.0)
+                          }
+                          expr.startsWith("MAX(") && expr.endsWith(")") -> {
+                              val vals = extractRangeValues(expr.removePrefix("MAX(").removeSuffix(")"), grid)
+                              formatNum(vals.maxOrNull() ?: 0.0)
+                          }
+                          expr.startsWith("COUNT(") && expr.endsWith(")") -> {
+                              val vals = extractRangeValues(expr.removePrefix("COUNT(").removeSuffix(")"), grid)
+                              vals.size.toString()
+                          }
+                          else -> {
+                              val replaced = Regex("[A-Z]+[0-9]+").replace(expr) { m ->
+                                  val (r, c) = parseCellRef(m.value)
+                                  val v = if (r in grid.indices && c in grid[r].indices) {
+                                      evaluateCellDisplay(grid[r][c], grid).toDoubleOrNull() ?: 0.0
+                                  } else 0.0
+                                  v.toString()
+                              }
+                              formatNum(evalSimpleMath(replaced))
+                          }
+                      }
+                  } catch (_: Exception) {
+                      raw
+                  }
+              }
+
+              private fun formatNum(d: Double): String {
+                  return if (d % 1.0 == 0.0) d.toLong().toString() else String.format(java.util.Locale.US, "%.2f", d)
+              }
+
+              private fun parseCellRef(ref: String): Pair<Int, Int> {
+                  val letters = ref.takeWhile { it.isLetter() }
+                  val digits = ref.dropWhile { it.isLetter() }
+                  var col = 0
+                  for (ch in letters) col = col * 26 + (ch - 'A' + 1)
+                  val row = (digits.toIntOrNull() ?: 1) - 1
+                  return Pair(row, col - 1)
+              }
+
+              private fun extractRangeValues(arg: String, grid: List<List<String>>): List<Double> {
+                  val out = mutableListOf<Double>()
+                  for (part in arg.split(",")) {
+                      val p = part.trim()
+                      if (p.contains(":")) {
+                          val (startRef, endRef) = p.split(":")
+                          val (r1, c1) = parseCellRef(startRef.trim())
+                          val (r2, c2) = parseCellRef(endRef.trim())
+                          for (r in minOf(r1, r2)..maxOf(r1, r2)) {
+                              for (c in minOf(c1, c2)..maxOf(c1, c2)) {
+                                  if (r in grid.indices && c in grid[r].indices) {
+                                      evaluateCellDisplay(grid[r][c], grid).toDoubleOrNull()?.let { out.add(it) }
+                                  }
+                              }
+                          }
+                      } else {
+                          val (r, c) = parseCellRef(p)
+                          if (r in grid.indices && c in grid[r].indices) {
+                              evaluateCellDisplay(grid[r][c], grid).toDoubleOrNull()?.let { out.add(it) }
+                          }
+                      }
+                  }
+                  return out
+              }
+
+              private fun evalSimpleMath(expr: String): Double {
+                  val clean = expr.replace(" ", "")
+                  for (i in clean.length - 1 downTo 1) {
+                      val ch = clean[i]
+                      if (ch == '+' || ch == '-') {
+                          val left = evalSimpleMath(clean.substring(0, i))
+                          val right = evalSimpleMath(clean.substring(i + 1))
+                          return if (ch == '+') left + right else left - right
+                      }
+                  }
+                  for (i in clean.length - 1 downTo 1) {
+                      val ch = clean[i]
+                      if (ch == '*' || ch == '/') {
+                          val left = evalSimpleMath(clean.substring(0, i))
+                          val right = evalSimpleMath(clean.substring(i + 1))
+                          return if (ch == '*') left * right else if (right != 0.0) left / right else 0.0
+                      }
+                  }
+                  return clean.toDoubleOrNull() ?: 0.0
+              }
+
+              fun renderPdfPageBitmap(pdfPath: String, pageIndex: Int): Bitmap? {
+                  val file = File(pdfPath)
+                  if (!file.exists()) return null
+                  return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                      PdfRenderer(pfd).use { renderer ->
+                          if (pageIndex < 0 || pageIndex >= renderer.pageCount) return@use null
+                          renderer.openPage(pageIndex).use { page ->
+                              val scale = 2
+                              val bmp = Bitmap.createBitmap(page.width * scale, page.height * scale, Bitmap.Config.ARGB_8888)
+                              val canvas = Canvas(bmp)
+                              canvas.drawColor(Color.WHITE)
+                              page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                              bmp
+                          }
+                      }
+                  }
+              }
+
+              fun createPdfFromImage(context: Context, imageUri: Uri): LoadedOfficeFile {
+                  val bmp = context.contentResolver.openInputStream(imageUri)?.use { BitmapFactory.decodeStream(it) }
+                      ?: throw IllegalStateException("Cannot decode scanned image")
+                  val pdfDoc = PdfDocument()
+                  val pageInfo = PdfDocument.PageInfo.Builder(bmp.width, bmp.height, 1).create()
+                  val page = pdfDoc.startPage(pageInfo)
+                  page.canvas.drawBitmap(bmp, 0f, 0f, null)
+                  pdfDoc.finishPage(page)
+
+                  val outFile = File(context.cacheDir, "scan_${System.currentTimeMillis()}.pdf")
+                  FileOutputStream(outFile).use { pdfDoc.writeTo(it) }
+                  pdfDoc.close()
+
+                  return LoadedOfficeFile(
+                      fileName = "OfficeLens_Scan_${System.currentTimeMillis() % 10000}.pdf",
+                      type = DocType.PDF_DOC,
+                      sourceUri = null,
+                      pdfCachedPath = outFile.absolutePath,
+                      pdfPageCount = 1,
+                      pdfAnnotations = mutableListOf(""),
+                      pdfHighlights = mutableListOf("")
+                  )
+              }
+
+              fun saveDocument(file: LoadedOfficeFile, out: OutputStream) {
+                  when (file.type) {
+                      DocType.PDF_DOC -> {
+                          val pdfDoc = PdfDocument()
+                          val notePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                              color = Color.parseColor("#B91C1C")
+                              textSize = 24f
+                              typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                          }
+                          val bannerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                              color = Color.parseColor("#FEF2F2")
+                          }
+                          val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                              color = Color.argb(95, 254, 240, 138)
+                          }
+
+                          val srcPath = file.pdfCachedPath
+                          if (srcPath != null && File(srcPath).exists()) {
+                              ParcelFileDescriptor.open(File(srcPath), ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                                  PdfRenderer(pfd).use { renderer ->
+                                      for (i in 0 until renderer.pageCount) {
+                                          val page = renderer.openPage(i)
+                                          val w = page.width * 2
+                                          val h = page.height * 2
+                                          val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                                          val bmpCanvas = Canvas(bmp)
+                                          bmpCanvas.drawColor(Color.WHITE)
+                                          page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                                          page.close()
+
+                                          val pageInfo = PdfDocument.PageInfo.Builder(w, h, i + 1).create()
+                                          val outPage = pdfDoc.startPage(pageInfo)
+                                          outPage.canvas.drawBitmap(bmp, 0f, 0f, null)
+
+                                          file.pdfSignatures[i]?.let { sigBmp ->
+                                              val scaledSig = Bitmap.createScaledBitmap(sigBmp, w / 3, h / 6, true)
+                                              outPage.canvas.drawBitmap(scaledSig, w - (w / 3f) - 40f, h - (h / 6f) - 120f, null)
+                                          }
+
+                                          val hl = file.pdfHighlights.getOrNull(i)?.trim() ?: ""
+                                          if (hl.isNotEmpty()) {
+                                              outPage.canvas.drawRect(30f, h - 180f, w - 30f, h - 120f, highlightPaint)
+                                              outPage.canvas.drawText("Highlight: $hl", 50f, h - 142f, notePaint)
+                                          }
+
+                                          val note = file.pdfAnnotations.getOrNull(i)?.trim() ?: ""
+                                          if (note.isNotEmpty()) {
+                                              outPage.canvas.drawRect(30f, h - 110f, w - 30f, h - 30f, bannerPaint)
+                                              outPage.canvas.drawText("Comment: $note", 50f, h - 60f, notePaint)
+                                          }
+                                          pdfDoc.finishPage(outPage)
+                                      }
+                                  }
+                              }
+                          } else {
+                              for (i in 0 until maxOf(file.pdfPageCount, 1)) {
+                                  val pageInfo = PdfDocument.PageInfo.Builder(1080, 1528, i + 1).create()
+                                  val outPage = pdfDoc.startPage(pageInfo)
+                                  outPage.canvas.drawColor(Color.WHITE)
+                                  val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                                      color = Color.BLACK
+                                      textSize = 32f
+                                  }
+                                  val note = file.pdfAnnotations.getOrNull(i) ?: ""
+                                  var yPos = 100f
+                                  for (line in note.split("\n")) {
+                                      outPage.canvas.drawText(line, 72f, yPos, textPaint)
+                                      yPos += 48f
+                                  }
+                                  file.pdfSignatures[i]?.let { sigBmp ->
+                                      val scaledSig = Bitmap.createScaledBitmap(sigBmp, 320, 160, true)
+                                      outPage.canvas.drawBitmap(scaledSig, 680f, 1280f, null)
+                                  }
+                                  pdfDoc.finishPage(outPage)
+                              }
+                          }
+                          pdfDoc.writeTo(out)
+                          pdfDoc.close()
+                      }
+                      DocType.WORD_DOCX, DocType.WORD_DOC -> {
+                          XWPFDocument().use { doc ->
+                              val spanned: Spanned = Html.fromHtml(file.wordHtml, Html.FROM_HTML_MODE_COMPACT)
+                              val lines = spanned.toString().split("\n")
+                              var cursor = 0
+                              for (line in lines) {
+                                  val p = doc.createParagraph()
+                                  p.alignment = when (file.wordAlign) {
+                                      "CENTER" -> ParagraphAlignment.CENTER
+                                      "RIGHT" -> ParagraphAlignment.RIGHT
+                                      else -> ParagraphAlignment.LEFT
+                                  }
+                                  val run = p.createRun()
+                                  run.setText(line)
+                                  run.fontSize = file.wordFontSize
+                                  if (line.isNotEmpty() && cursor < spanned.length) {
+                                      val endIdx = minOf(cursor + line.length, spanned.length)
+                                      val styles = spanned.getSpans(cursor, endIdx, StyleSpan::class.java)
+                                      for (st in styles) {
+                                          if (st.style == Typeface.BOLD || st.style == Typeface.BOLD_ITALIC) run.isBold = true
+                                          if (st.style == Typeface.ITALIC || st.style == Typeface.BOLD_ITALIC) run.isItalic = true
+                                      }
+                                      val underlines = spanned.getSpans(cursor, endIdx, UnderlineSpan::class.java)
+                                      if (underlines.isNotEmpty()) run.underline = UnderlinePatterns.SINGLE
+                                  }
+                                  cursor += line.length + 1
+                              }
+                              doc.write(out)
+                          }
+                      }
+                      DocType.EXCEL_XLSX, DocType.EXCEL_XLS -> {
+                          val wb: Workbook = if (file.type == DocType.EXCEL_XLS) HSSFWorkbook() else XSSFWorkbook()
+                          wb.use {
+                              for ((sheetName, grid) in file.sheets) {
+                                  val sheet = it.createSheet(sheetName)
+                                  for ((rIdx, rowValues) in grid.withIndex()) {
+                                      val row = sheet.createRow(rIdx)
+                                      for ((cIdx, rawVal) in rowValues.withIndex()) {
+                                          val trimmed = rawVal.trim()
+                                          if (trimmed.isNotEmpty()) {
+                                              val cell = row.createCell(cIdx)
+                                              val num = trimmed.toDoubleOrNull()
+                                              when {
+                                                  trimmed.startsWith("=") && trimmed.length > 1 -> {
+                                                      try { cell.cellFormula = trimmed.substring(1) } catch (_: Exception) { cell.setCellValue(rawVal) }
+                                                  }
+                                                  num != null -> cell.setCellValue(num)
+                                                  else -> cell.setCellValue(rawVal)
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                              it.write(out)
+                          }
+                      }
+                      DocType.PPT_PPTX, DocType.PPT_PPT -> {
+                          XMLSlideShow().use { ppt ->
+                              for (item in file.slides) {
+                                  val slide = ppt.createSlide()
+
+                                  // Apply Slide Theme Background Color in OpenXML
+                                  val cSld = slide.xmlObject.cSld
+                                  val bg = if (cSld.isSetBg) cSld.bg else cSld.addNewBg()
+                                  val bgPr = if (bg.isSetBgPr) bg.bgPr else bg.addNewBgPr()
+                                  val solidFill = bgPr.addNewSolidFill()
+                                  solidFill.addNewSrgbClr().setVal(item.theme.poiBgRgb)
+
+                                  val textAlign = when (item.align) {
+                                      "CENTER" -> org.apache.poi.sl.usermodel.TextParagraph.TextAlign.CENTER
+                                      "RIGHT" -> org.apache.poi.sl.usermodel.TextParagraph.TextAlign.RIGHT
+                                      else -> org.apache.poi.sl.usermodel.TextParagraph.TextAlign.LEFT
+                                  }
+
+                                  // Styled Title Box
+                                  val titleBox = slide.createTextBox()
+                                  val titleXfrm = titleBox.xmlObject as org.openxmlformats.schemas.presentationml.x2006.main.CTShape
+                                  titleXfrm.spPr.addNewXfrm().apply {
+                                      addNewOff().apply { x = 508000L; y = 381000L }
+                                      addNewExt().apply { cx = 8128000L; cy = 1016000L }
+                                  }
+                                  val tp = titleBox.addNewTextParagraph().apply { this.textAlign = textAlign }
+                                  val tr = tp.addNewTextRun()
+                                  tr.setText(item.title)
+                                  tr.fontSize = 28.0
+                                  tr.isBold = item.titleBold
+                                  tr.isItalic = item.titleItalic
+                                  tr.setFontColor(
+                                      org.apache.poi.sl.usermodel.PaintStyle.SolidPaint {
+                                          object : org.apache.poi.sl.usermodel.ColorStyle {
+                                              override fun getColor() = throw UnsupportedOperationException()
+                                              override fun getAlpha() = 100000
+                                              override fun getHueOff() = 0
+                                              override fun getHueMod() = 100000
+                                              override fun getSatOff() = 0
+                                              override fun getSatMod() = 100000
+                                              override fun getLumOff() = 0
+                                              override fun getLumMod() = 100000
+                                              override fun getShade() = 0
+                                              override fun getTint() = 0
+                                          }
+                                      }
+                                  )
+
+                                  // Styled Body Box
+                                  val bodyBox = slide.createTextBox()
+                                  val bodyXfrm = bodyBox.xmlObject as org.openxmlformats.schemas.presentationml.x2006.main.CTShape
+                                  bodyXfrm.spPr.addNewXfrm().apply {
+                                      addNewOff().apply { x = 508000L; y = 1651000L }
+                                      addNewExt().apply { cx = 8128000L; cy = 4572000L }
+                                  }
+                                  for (line in item.body.split("\n")) {
+                                      val bp = bodyBox.addNewTextParagraph().apply { this.textAlign = textAlign }
+                                      val br = bp.addNewTextRun()
+                                      br.setText(line)
+                                      br.fontSize = 18.0
+                                      br.isBold = item.bodyBold
+                                      br.isItalic = item.bodyItalic
+                                  }
+                              }
+                              ppt.write(out)
+                          }
+                      }
+                  }
+              }
+
+              fun exportCurrentFileAsPdf(file: LoadedOfficeFile, out: OutputStream) {
+                  if (file.type == DocType.PDF_DOC) {
+                      saveDocument(file, out)
+                      return
+                  }
+                  val pdfDoc = PdfDocument()
+                  val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                      color = Color.parseColor("#111827")
+                      textSize = 36f
+                      typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                  }
+                  val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                      color = Color.parseColor("#1F2937")
+                      textSize = 26f
+                  }
+
+                  val pageInfo = PdfDocument.PageInfo.Builder(1080, 1528, 1).create()
+                  val page = pdfDoc.startPage(pageInfo)
+                  val canvas = page.canvas
+                  canvas.drawColor(Color.WHITE)
+                  canvas.drawText(file.fileName, 64f, 84f, titlePaint)
+
+                  var y = 150f
+                  when (file.type) {
+                      DocType.WORD_DOC, DocType.WORD_DOCX -> {
+                          val plain = Html.fromHtml(file.wordHtml, Html.FROM_HTML_MODE_COMPACT).toString()
+                          for (p in plain.split("\n")) {
+                              if (y > 1440f) break
+                              canvas.drawText(p.take(75), 64f, y, bodyPaint)
+                              y += 42f
+                          }
+                      }
+                      DocType.EXCEL_XLS, DocType.EXCEL_XLSX -> {
+                          for ((sName, grid) in file.sheets) {
+                              if (y > 1440f) break
+                              canvas.drawText("Sheet: $sName", 64f, y, titlePaint)
+                              y += 46f
+                              for (row in grid) {
+                                  if (y > 1440f) break
+                                  val line = row.map { evaluateCellDisplay(it, grid) }.filter { it.isNotBlank() }.joinToString(" | ")
+                                  if (line.isNotEmpty()) {
+                                      canvas.drawText(line.take(75), 64f, y, bodyPaint)
+                                      y += 38f
+                                  }
+                              }
+                          }
+                      }
+                      DocType.PPT_PPT, DocType.PPT_PPTX -> {
+                          for ((idx, slide) in file.slides.withIndex()) {
+                              if (y > 1440f) break
+                              canvas.drawText("Slide ${idx + 1}: ${slide.title}", 64f, y, titlePaint)
+                              y += 44f
+                              for (bLine in slide.body.split("\n")) {
+                                  if (y > 1440f) break
+                                  canvas.drawText(bLine.take(75), 84f, y, bodyPaint)
+                                  y += 38f
+                              }
+                              y += 20f
+                          }
+                      }
+                      else -> {}
+                  }
+                  pdfDoc.finishPage(page)
+                  pdfDoc.writeTo(out)
+                  pdfDoc.close()
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/example/officepocket/MainActivity.kt
+          package com.example.officepocket
+
+          import android.app.AlertDialog
+          import android.content.Context
+          import android.content.Intent
+          import android.graphics.*
+          import android.graphics.drawable.GradientDrawable
+          import android.net.Uri
+          import android.os.Bundle
+          import android.speech.tts.TextToSpeech
+          import android.text.Editable
+          import android.text.Html
+          import android.text.Spannable
+          import android.text.TextWatcher
+          import android.text.style.StyleSpan
+          import android.text.style.UnderlineSpan
+          import android.view.Gravity
+          import android.view.MotionEvent
+          import android.view.View
+          import android.widget.*
+          import androidx.activity.OnBackPressedCallback
+          import androidx.activity.result.contract.ActivityResultContracts
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.core.content.FileProvider
+          import org.json.JSONArray
+          import org.json.JSONObject
+          import java.io.File
+          import java.text.SimpleDateFormat
+          import java.util.*
+
+          class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
+
+              // Microsoft 365 Fluent Palette
+              private val m365Orange = Color.parseColor("#D83B01")
+              private val m365Bg = Color.parseColor("#F3F2F1")
+              private val wordBlue = Color.parseColor("#185ABD")
+              private val excelGreen = Color.parseColor("#107C41")
+              private val pptRed = Color.parseColor("#C43E1C")
+              private val pdfCrimson = Color.parseColor("#B91C1C")
+              private val todoBlue = Color.parseColor("#2564CF")
+              private val stickyYellow = Color.parseColor("#FEF08A")
+              private val lensTeal = Color.parseColor("#0F766E")
+              private val cardWhite = Color.WHITE
+              private val borderSubtle = Color.parseColor("#E1DFDD")
+              private val textDark = Color.parseColor("#201F1E")
+              private val textMuted = Color.parseColor("#605E5C")
+
+              enum class ScreenState { HOME, EDITOR, TODO, NOTES, LENS, APPS_HUB, ABOUT }
+
+              private val navHistory = ArrayDeque<ScreenState>()
+              private var currentScreen = ScreenState.HOME
+
+              private var currentFile: LoadedOfficeFile? = null
+              private var activeSheetName: String = ""
+              private var activeSlideIndex: Int = 0
+              private var activePdfPage: Int = 0
+              private var isExportingPdf: Boolean = false
+              private var isPresentationMode: Boolean = false
+              private var homeFilterQuery: String = ""
+              private var tts: TextToSpeech? = null
+
+              private lateinit var headerTitleText: TextView
+              private lateinit var headerBadgeText: TextView
+              private lateinit var backNavBtn: Button
+              private lateinit var workspaceContainer: FrameLayout
+              private lateinit var saveBtn: Button
+              private lateinit var pdfExportBtn: Button
+
+              private val openDocLauncher = registerForActivityResult(
+                  ActivityResultContracts.OpenDocument()
+              ) { uri: Uri? ->
+                  if (uri != null) {
+                      try {
+                          contentResolver.takePersistableUriPermission(
+                              uri,
+                              Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                          )
+                      } catch (_: Exception) {}
+                      openFromUri(uri)
+                  }
+              }
+
+              private val scanImageLauncher = registerForActivityResult(
+                  ActivityResultContracts.GetContent()
+              ) { uri: Uri? ->
+                  if (uri != null) {
+                      try {
+                          val scannedPdf = OfficeEngine.createPdfFromImage(this, uri)
+                          recordRecentFile(scannedPdf.fileName, "PDF_SCAN")
+                          loadIntoEditor(scannedPdf, pushHistory = true)
+                          Toast.makeText(this, "📸 Converted image to PDF!", Toast.LENGTH_SHORT).show()
+                      } catch (e: Exception) {
+                          Toast.makeText(this, "Scan error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                      }
+                  }
+              }
+
+              private val createDocLauncher = registerForActivityResult(
+                  ActivityResultContracts.CreateDocument("*/*")
+              ) { uri: Uri? ->
+                  val file = currentFile ?: return@registerForActivityResult
+                  if (uri != null) {
+                      try {
+                          contentResolver.openOutputStream(uri, "wt")?.use { out ->
+                              if (isExportingPdf) {
+                                  OfficeEngine.exportCurrentFileAsPdf(file, out)
+                              } else {
+                                  OfficeEngine.saveDocument(file, out)
+                              }
+                          }
+                          Toast.makeText(
+                              this,
+                              if (isExportingPdf) "✅ Exported to PDF!" else "✅ Saved to mobile!",
+                              Toast.LENGTH_SHORT
+                          ).show()
+                      } catch (e: Exception) {
+                          Toast.makeText(this, "Save failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                      } finally {
+                          isExportingPdf = false
+                      }
+                  } else {
+                      isExportingPdf = false
+                  }
+              }
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  tts = TextToSpeech(this, this)
+
+                  onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                      override fun handleOnBackPressed() {
+                          handleBackNavigation()
+                      }
+                  })
+
+                  val root = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setBackgroundColor(m365Bg)
+                  }
+
+                  // --- MICROSOFT 365 TOP HEADER BAR ---
+                  val topBar = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setBackgroundColor(Color.WHITE)
+                      setPadding(28, 36, 28, 18)
+                  }
+
+                  val brandRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                  }
+                  backNavBtn = Button(this).apply {
+                      text = "←"
+                      textSize = 18f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(textDark)
+                      setBackgroundColor(Color.TRANSPARENT)
+                      visibility = View.GONE
+                      layoutParams = LinearLayout.LayoutParams(100, LinearLayout.LayoutParams.WRAP_CONTENT)
+                      setOnClickListener { handleBackNavigation() }
+                  }
+                  headerTitleText = TextView(this).apply {
+                      text = "Microsoft 365"
+                      textSize = 20f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(textDark)
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  }
+                  headerBadgeText = TextView(this).apply {
+                      text = "M365"
+                      textSize = 11f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(Color.WHITE)
+                      setPadding(18, 8, 18, 8)
+                      background = GradientDrawable().apply {
+                          setColor(m365Orange)
+                          cornerRadius = 16f
+                      }
+                  }
+                  brandRow.addView(backNavBtn)
+                  brandRow.addView(headerTitleText)
+                  brandRow.addView(headerBadgeText)
+                  topBar.addView(brandRow)
+
+                  // Contextual Action Toolbar
+                  val actionRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      setPadding(0, 14, 0, 4)
+                  }
+                  val openBtn = pillButton("📂 Open", Color.parseColor("#323130"))
+                  val newBtn = pillButton("➕ Create", m365Orange)
+                  saveBtn = pillButton("💾 Save", wordBlue).apply { isEnabled = false; alpha = 0.45f }
+                  pdfExportBtn = pillButton("📕 PDF", pdfCrimson).apply { isEnabled = false; alpha = 0.45f }
+
+                  listOf(openBtn, newBtn, saveBtn, pdfExportBtn).forEachIndexed { idx, btn ->
+                      (btn.layoutParams as LinearLayout.LayoutParams).apply {
+                          if (idx > 0) marginStart = 10
+                      }
+                      actionRow.addView(btn)
+                  }
+                  topBar.addView(actionRow)
+                  root.addView(topBar)
+
+                  root.addView(View(this).apply {
+                      setBackgroundColor(borderSubtle)
+                      layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2)
+                  })
+
+                  // --- MAIN WORKSPACE ---
+                  workspaceContainer = FrameLayout(this).apply {
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          0,
+                          1f
+                      )
+                  }
+                  root.addView(workspaceContainer)
+
+                  // --- M365 BOTTOM NAVIGATION BAR (Home | To Do | Notes | Apps | About) ---
+                  val bottomNav = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      setBackgroundColor(Color.WHITE)
+                      setPadding(8, 12, 8, 18)
+                  }
+                  bottomNav.addView(navTab("🏠 Home") { navigateTo(ScreenState.HOME) })
+                  bottomNav.addView(navTab("☑️ To Do") { navigateTo(ScreenState.TODO) })
+                  bottomNav.addView(navTab("🗒️ Notes") { navigateTo(ScreenState.NOTES) })
+                  bottomNav.addView(navTab("⊞ Apps") { navigateTo(ScreenState.APPS_HUB) })
+                  bottomNav.addView(navTab("ℹ️ About") { navigateTo(ScreenState.ABOUT) })
+                  root.addView(bottomNav)
+
+                  setContentView(root)
+
+                  openBtn.setOnClickListener {
+                      openDocLauncher.launch(
+                          arrayOf(
+                              "application/pdf",
+                              "application/msword",
+                              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                              "application/vnd.ms-excel",
+                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                              "application/vnd.ms-powerpoint",
+                              "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                              "*/*"
+                          )
+                      )
+                  }
+
+                  newBtn.setOnClickListener { showCreateMenuWithTemplates() }
+
+                  saveBtn.setOnClickListener {
+                      val file = currentFile ?: return@setOnClickListener
+                      isExportingPdf = false
+                      val saveName = when (file.type) {
+                          DocType.WORD_DOC -> file.fileName.substringBeforeLast(".") + ".docx"
+                          DocType.PPT_PPT -> file.fileName.substringBeforeLast(".") + ".pptx"
+                          else -> file.fileName
+                      }
+                      createDocLauncher.launch(saveName)
+                  }
+
+                  pdfExportBtn.setOnClickListener {
+                      val file = currentFile ?: return@setOnClickListener
+                      isExportingPdf = true
+                      val pdfName = file.fileName.substringBeforeLast(".") + ".pdf"
+                      createDocLauncher.launch(pdfName)
+                  }
+
+                  if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
+                      openFromUri(intent.data!!)
+                  } else {
+                      renderScreen(ScreenState.HOME)
+                  }
+              }
+
+              override fun onInit(status: Int) {
+                  if (status == TextToSpeech.SUCCESS) {
+                      tts?.language = Locale.US
+                  }
+              }
+
+              override fun onDestroy() {
+                  tts?.stop()
+                  tts?.shutdown()
+                  super.onDestroy()
+              }
+
+              // =========================================================================
+              // BACK BUTTON & NAVIGATION STACK CONTROLLER
+              // =========================================================================
+              private fun navigateTo(target: ScreenState, pushHistory: Boolean = true) {
+                  if (target == ScreenState.EDITOR && currentFile == null) {
+                      showCreateMenuWithTemplates()
+                      return
+                  }
+                  if (pushHistory && currentScreen != target) {
+                      navHistory.addLast(currentScreen)
+                  }
+                  currentScreen = target
+                  renderScreen(target)
+              }
+
+              private fun handleBackNavigation() {
+                  if (currentScreen == ScreenState.EDITOR && isPresentationMode && currentFile != null) {
+                      isPresentationMode = false
+                      renderPowerPointEditor(currentFile!!)
+                      return
+                  }
+                  if (navHistory.isNotEmpty()) {
+                      val prev = navHistory.removeLast()
+                      currentScreen = prev
+                      renderScreen(prev)
+                      return
+                  }
+                  if (currentScreen != ScreenState.HOME) {
+                      currentScreen = ScreenState.HOME
+                      renderScreen(ScreenState.HOME)
+                      return
+                  }
+                  moveTaskToBack(true)
+              }
+
+              private fun renderScreen(state: ScreenState) {
+                  tts?.stop()
+                  backNavBtn.visibility = if (state == ScreenState.HOME) View.GONE else View.VISIBLE
+                  when (state) {
+                      ScreenState.HOME -> renderM365Home()
+                      ScreenState.EDITOR -> currentFile?.let { loadIntoEditor(it, pushHistory = false) } ?: renderM365Home()
+                      ScreenState.TODO -> renderToDoApp()
+                      ScreenState.NOTES -> renderStickyNotesApp()
+                      ScreenState.LENS -> renderOfficeLensTools()
+                      ScreenState.APPS_HUB -> renderAllAppsHub()
+                      ScreenState.ABOUT -> renderAboutScreen()
+                  }
+              }
+
+              private fun openFromUri(uri: Uri) {
+                  try {
+                      val loaded = OfficeEngine.loadDocument(this, uri)
+                      recordRecentFile(loaded.fileName, loaded.type.name)
+                      loadIntoEditor(loaded, pushHistory = true)
+                      Toast.makeText(this, "Opened ${loaded.fileName}", Toast.LENGTH_SHORT).show()
+                  } catch (e: Exception) {
+                      AlertDialog.Builder(this)
+                          .setTitle("Could Not Open File")
+                          .setMessage(e.localizedMessage ?: "Unsupported or corrupted file")
+                          .setPositiveButton("OK", null)
+                          .show()
+                  }
+              }
+
+              // =========================================================================
+              // ABOUT SCREEN (Author: WebDevFz, Version: 1.0.0)
+              // =========================================================================
+              private fun renderAboutScreen() {
+                  workspaceContainer.removeAllViews()
+                  headerTitleText.text = "About"
+                  headerBadgeText.text = "v1.0.0"
+                  (headerBadgeText.background as GradientDrawable).setColor(m365Orange)
+
+                  val scroll = ScrollView(this)
+                  val col = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(36, 36, 36, 48)
+                  }
+                  scroll.addView(col)
+
+                  val brandCard = m365Card().apply {
+                      gravity = Gravity.CENTER_HORIZONTAL
+                      setPadding(36, 44, 36, 44)
+                  }
+                  val iconView = ImageView(this).apply {
+                      setImageResource(R.drawable.ic_office365_launcher)
+                      layoutParams = LinearLayout.LayoutParams(160, 160).apply { bottomMargin = 20 }
+                  }
+                  brandCard.addView(iconView)
+
+                  brandCard.addView(TextView(this).apply {
+                      text = "Microsoft 365 Pocket"
+                      textSize = 22f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(textDark)
+                      gravity = Gravity.CENTER
+                  })
+                  brandCard.addView(TextView(this).apply {
+                      text = "All-in-One Mobile Office, PDF & To Do Suite"
+                      textSize = 13f
+                      setTextColor(textMuted)
+                      gravity = Gravity.CENTER
+                      setPadding(0, 6, 0, 24)
+                  })
+
+                  val metaBox = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(28, 24, 28, 24)
+                      background = GradientDrawable().apply {
+                          setColor(Color.parseColor("#F8FAFC"))
+                          cornerRadius = 16f
+                          setStroke(2, borderSubtle)
+                      }
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      )
+                  }
+                  metaBox.addView(TextView(this).apply {
+                      text = "Author: WebDevFz"
+                      textSize = 16f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(m365Orange)
+                      setPadding(0, 0, 0, 10)
+                  })
+                  metaBox.addView(TextView(this).apply {
+                      text = "Version: 1.0.0"
+                      textSize = 16f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(textDark)
+                  })
+                  brandCard.addView(metaBox)
+                  col.addView(brandCard)
+
+                  val featuresCard = m365Card()
+                  featuresCard.addView(TextView(this).apply {
+                      text = "Included Capabilities"
+                      textSize = 16f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(textDark)
+                      setPadding(0, 0, 0, 10)
+                  })
+                  featuresCard.addView(TextView(this).apply {
+                      text = "• Word (.doc & .docx) with rich formatting & Read Aloud\n" +
+                             "• Excel (.xls & .xlsx) with live formula bar & AutoSum\n" +
+                             "• PowerPoint (.ppt & .pptx) with slide themes, formatting & slideshow\n" +
+                             "• PDF Reader, Highlighter, Commenter & Digital Signature Pad\n" +
+                             "• Microsoft To Do with WhatsApp/TXT/Word sharing & Sticky Notes"
+                      textSize = 13f
+                      setTextColor(textMuted)
+                      setLineSpacing(6f, 1.15f)
+                  })
+                  col.addView(featuresCard)
+
+                  workspaceContainer.addView(scroll)
+              }
+
+              // =========================================================================
+              // M365 TEMPLATES & CREATE MENU
+              // =========================================================================
+              private fun showCreateMenuWithTemplates() {
+                  val items = arrayOf(
+                      "📘 Word — Blank Document (.docx)",
+                      "📘 Word — Business Letter / Resume Template",
+                      "📗 Excel — Blank Workbook (.xlsx)",
+                      "📗 Excel — Monthly Budget Tracker (With Formulas)",
+                      "📙 PowerPoint — Blank Presentation (.pptx)",
+                      "📙 PowerPoint — Styled Keynote Deck (3 Slides)",
+                      "📕 PDF — Blank PDF Document (.pdf)",
+                      "📸 Office Lens — Scan Image to PDF",
+                      "☑️ Microsoft To Do — New Task",
+                      "🗒️ Sticky Notes — Quick Note"
+                  )
+                  AlertDialog.Builder(this)
+                      .setTitle("Create in Microsoft 365")
+                      .setItems(items) { _, which ->
+                          when (which) {
+                              0 -> loadIntoEditor(LoadedOfficeFile("Document.docx", DocType.WORD_DOCX, null, wordHtml = ""), true)
+                              1 -> loadIntoEditor(
+                                  LoadedOfficeFile(
+                                      "Professional_Resume.docx",
+                                      DocType.WORD_DOCX,
+                                      null,
+                                      wordHtml = "<b>YOUR FULL NAME</b><br><i>Hyderabad, India • email@example.com</i><br><br><b>PROFESSIONAL SUMMARY</b><br>Results-driven professional experienced in software engineering and automation.<br><br><b>KEY SKILLS</b><br>• Project Management & Strategy<br>• Data Analysis & Reporting"
+                                  ),
+                                  true
+                              )
+                              2 -> {
+                                  val grid = MutableList(16) { MutableList(7) { "" } }
+                                  loadIntoEditor(LoadedOfficeFile("Workbook.xlsx", DocType.EXCEL_XLSX, null, sheets = linkedMapOf("Sheet1" to grid)), true)
+                              }
+                              3 -> {
+                                  val grid = MutableList(16) { MutableList(7) { "" } }
+                                  grid[0][0] = "Category"; grid[0][1] = "Planned"; grid[0][2] = "Actual"; grid[0][3] = "Difference"
+                                  grid[1][0] = "Housing"; grid[1][1] = "15000"; grid[1][2] = "15000"; grid[1][3] = "=B2-C2"
+                                  grid[2][0] = "Groceries"; grid[2][1] = "8000"; grid[2][2] = "7200"; grid[2][3] = "=B3-C3"
+                                  grid[3][0] = "Utilities"; grid[3][1] = "3500"; grid[3][2] = "3100"; grid[3][3] = "=B4-C4"
+                                  grid[4][0] = "TOTAL"; grid[4][1] = "=SUM(B2:B4)"; grid[4][2] = "=SUM(C2:C4)"; grid[4][3] = "=SUM(D2:D4)"
+                                  loadIntoEditor(LoadedOfficeFile("Monthly_Budget.xlsx", DocType.EXCEL_XLSX, null, sheets = linkedMapOf("Budget" to grid)), true)
+                              }
+                              4 -> loadIntoEditor(
+                                  LoadedOfficeFile("Presentation.pptx", DocType.PPT_PPTX, null, slides = mutableListOf(SlideItem("Presentation Title", "Subtitle"))),
+                                  true
+                              )
+                              5 -> loadIntoEditor(
+                                  LoadedOfficeFile(
+                                      "Keynote_Pitch.pptx",
+                                      DocType.PPT_PPTX,
+                                      null,
+                                      slides = mutableListOf(
+                                          SlideItem("Executive Overview", "• Strategic Vision for 2026\n• Key Deliverables", theme = SlideTheme.MIDNIGHT_EXEC, align = "CENTER"),
+                                          SlideItem("Growth & Metrics", "• Revenue Expansion\n• Operational Excellence", theme = SlideTheme.EMERALD_BOARD),
+                                          SlideItem("Next Steps & Q&A", "• Action Items & Owners", theme = SlideTheme.CRIMSON_KEYNOTE, align = "CENTER")
+                                      )
+                                  ),
+                                  true
+                              )
+                              6 -> loadIntoEditor(
+                                  LoadedOfficeFile("Document.pdf", DocType.PDF_DOC, null, pdfPageCount = 1, pdfAnnotations = mutableListOf(""), pdfHighlights = mutableListOf("")),
+                                  true
+                              )
+                              7 -> scanImageLauncher.launch("image/*")
+                              8 -> navigateTo(ScreenState.TODO)
+                              9 -> navigateTo(ScreenState.NOTES)
+                          }
+                      }
+                      .show()
+              }
+
+              private fun loadIntoEditor(file: LoadedOfficeFile, pushHistory: Boolean = false) {
+                  if (pushHistory && currentScreen != ScreenState.EDITOR) {
+                      navHistory.addLast(currentScreen)
+                  }
+                  currentScreen = ScreenState.EDITOR
+                  backNavBtn.visibility = View.VISIBLE
+
+                  currentFile = file
+                  headerTitleText.text = file.fileName
+                  saveBtn.isEnabled = true
+                  saveBtn.alpha = 1f
+                  pdfExportBtn.isEnabled = true
+                  pdfExportBtn.alpha = 1f
+
+                  when (file.type) {
+                      DocType.WORD_DOC, DocType.WORD_DOCX -> {
+                          headerBadgeText.text = if (file.type == DocType.WORD_DOC) "WORD • DOC" else "WORD • DOCX"
+                          (headerBadgeText.background as GradientDrawable).setColor(wordBlue)
+                          renderWordEditor(file)
+                      }
+                      DocType.EXCEL_XLS, DocType.EXCEL_XLSX -> {
+                          headerBadgeText.text = if (file.type == DocType.EXCEL_XLS) "EXCEL • XLS" else "EXCEL • XLSX"
+                          (headerBadgeText.background as GradientDrawable).setColor(excelGreen)
+                          activeSheetName = file.sheets.keys.firstOrNull() ?: "Sheet1"
+                          renderExcelEditor(file)
+                      }
+                      DocType.PPT_PPT, DocType.PPT_PPTX -> {
+                          headerBadgeText.text = if (file.type == DocType.PPT_PPT) "PPT • PPT" else "PPT • PPTX"
+                          (headerBadgeText.background as GradientDrawable).setColor(pptRed)
+                          activeSlideIndex = 0
+                          renderPowerPointEditor(file)
+                      }
+                      DocType.PDF_DOC -> {
+                          headerBadgeText.text = "PDF SUITE"
+                          (headerBadgeText.background as GradientDrawable).setColor(pdfCrimson)
+                          activePdfPage = 0
+                          renderPdfViewerAndEditor(file)
+                      }
+                  }
+              }
+
+              // =========================================================================
+              // 1. MICROSOFT 365 HOME HUB
+              // =========================================================================
+              private fun renderM365Home() {
+                  workspaceContainer.removeAllViews()
+                  headerTitleText.text = "Microsoft 365"
+                  headerBadgeText.text = "M365 HUB"
+                  (headerBadgeText.background as GradientDrawable).setColor(m365Orange)
+
+                  val scroll = ScrollView(this)
+                  val col = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(32, 28, 32, 48)
+                  }
+                  scroll.addView(col)
+
+                  val searchBox = EditText(this).apply {
+                      hint = "🔍 Search files, tasks, and notes..."
+                      setText(homeFilterQuery)
+                      setTextColor(textDark)
+                      setHintTextColor(textMuted)
+                      setPadding(28, 20, 28, 20)
+                      background = GradientDrawable().apply {
+                          setColor(Color.WHITE)
+                          cornerRadius = 28f
+                          setStroke(2, borderSubtle)
+                      }
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply { bottomMargin = 22 }
+                  }
+                  col.addView(searchBox)
+
+                  val appStrip = HorizontalScrollView(this).apply {
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply { bottomMargin = 24 }
+                  }
+                  val stripRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                  stripRow.addView(miniAppChip("📘 Word", wordBlue) {
+                      loadIntoEditor(LoadedOfficeFile("Document.docx", DocType.WORD_DOCX, null, wordHtml = ""), true)
+                  })
+                  stripRow.addView(miniAppChip("📗 Excel", excelGreen) {
+                      val grid = MutableList(16) { MutableList(7) { "" } }
+                      loadIntoEditor(LoadedOfficeFile("Workbook.xlsx", DocType.EXCEL_XLSX, null, sheets = linkedMapOf("Sheet1" to grid)), true)
+                  })
+                  stripRow.addView(miniAppChip("📙 PowerPoint", pptRed) {
+                      loadIntoEditor(LoadedOfficeFile("Presentation.pptx", DocType.PPT_PPTX, null, slides = mutableListOf(SlideItem("Slide 1", ""))), true)
+                  })
+                  stripRow.addView(miniAppChip("📕 PDF", pdfCrimson) {
+                      openDocLauncher.launch(arrayOf("application/pdf"))
+                  })
+                  stripRow.addView(miniAppChip("📸 Lens Scan", lensTeal) {
+                      scanImageLauncher.launch("image/*")
+                  })
+                  appStrip.addView(stripRow)
+                  col.addView(appStrip)
+
+                  currentFile?.let { active ->
+                      val resumeCard = m365Card().apply {
+                          background = GradientDrawable().apply {
+                              setColor(Color.parseColor("#FFF8F6"))
+                              cornerRadius = 20f
+                              setStroke(3, m365Orange)
+                          }
+                      }
+                      resumeCard.addView(TextView(this).apply {
+                          text = "⚡ Continue Editing: ${active.fileName}"
+                          textSize = 15f
+                          setTypeface(null, Typeface.BOLD)
+                          setTextColor(m365Orange)
+                      })
+                      resumeCard.addView(TextView(this).apply {
+                          text = "Tap to return to your active document workspace"
+                          textSize = 12f
+                          setTextColor(textMuted)
+                          setPadding(0, 4, 0, 10)
+                      })
+                      resumeCard.setOnClickListener { loadIntoEditor(active, pushHistory = true) }
+                      col.addView(resumeCard)
+                  }
+
+                  val dynamicFeed = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  col.addView(dynamicFeed)
+
+                  fun renderFeed(filter: String) {
+                      dynamicFeed.removeAllViews()
+                      val q = filter.trim().lowercase()
+
+                      val todoCard = m365Card()
+                      todoCard.addView(TextView(this).apply {
+                          text = "☑️ Microsoft To Do (Saved on Phone)"
+                          textSize = 16f
+                          setTypeface(null, Typeface.BOLD)
+                          setTextColor(todoBlue)
+                      })
+                      val tasks = getTodoList()
+                      var shownTasks = 0
+                      for (i in 0 until tasks.length()) {
+                          val t = tasks.getJSONObject(i)
+                          val title = t.getString("title")
+                          if (q.isEmpty() || title.lowercase().contains(q)) {
+                              if (shownTasks < 3) {
+                                  val mark = if (t.optBoolean("done", false)) "✔" else "○"
+                                  todoCard.addView(TextView(this).apply {
+                                      text = "$mark  $title"
+                                      textSize = 14f
+                                      setTextColor(textDark)
+                                      setPadding(0, 8, 0, 4)
+                                  })
+                              }
+                              shownTasks++
+                          }
+                      }
+                      if (shownTasks == 0) {
+                          todoCard.addView(TextView(this).apply {
+                              text = "No matching tasks. Tap below to manage or share your To Do list."
+                              textSize = 13f
+                              setTextColor(textMuted)
+                              setPadding(0, 8, 0, 8)
+                          })
+                      }
+                      todoCard.addView(Button(this).apply {
+                          text = "Open & Share To Do List ($shownTasks) →"
+                          setBackgroundColor(todoBlue)
+                          setTextColor(Color.WHITE)
+                          setOnClickListener { navigateTo(ScreenState.TODO) }
+                      })
+                      dynamicFeed.addView(todoCard)
+
+                      val notesCard = m365Card().apply {
+                          background = GradientDrawable().apply {
+                              setColor(Color.parseColor("#FEFCE8"))
+                              cornerRadius = 20f
+                              setStroke(2, Color.parseColor("#FACC15"))
+                          }
+                      }
+                      notesCard.addView(TextView(this).apply {
+                          text = "🗒️ Sticky Notes"
+                          textSize = 16f
+                          setTypeface(null, Typeface.BOLD)
+                          setTextColor(Color.parseColor("#854D0E"))
+                      })
+                      val notes = getStickyNotes()
+                      var shownNotes = 0
+                      for (i in 0 until notes.length()) {
+                          val n = notes.getJSONObject(i)
+                          val body = n.getString("body")
+                          if (q.isEmpty() || body.lowercase().contains(q)) {
+                              if (shownNotes < 2) {
+                                  notesCard.addView(TextView(this).apply {
+                                      text = "• ${body.take(80)}"
+                                      textSize = 13f
+                                      setTextColor(textDark)
+                                      setPadding(0, 6, 0, 4)
+                                  })
+                              }
+                              shownNotes++
+                          }
+                      }
+                      notesCard.addView(Button(this).apply {
+                          text = "Open Sticky Notes ($shownNotes) →"
+                          setBackgroundColor(Color.parseColor("#CA8A04"))
+                          setTextColor(Color.WHITE)
+                          setOnClickListener { navigateTo(ScreenState.NOTES) }
+                      })
+                      dynamicFeed.addView(notesCard)
+
+                      val recentArr = getRecentFiles()
+                      val recentCard = m365Card()
+                      recentCard.addView(TextView(this).apply {
+                          text = "🕒 Recent Documents"
+                          textSize = 16f
+                          setTypeface(null, Typeface.BOLD)
+                          setTextColor(textDark)
+                          setPadding(0, 0, 0, 8)
+                      })
+                      var shownRecents = 0
+                      for (i in 0 until recentArr.length()) {
+                          val item = recentArr.getJSONObject(i)
+                          val rName = item.getString("name")
+                          if (q.isEmpty() || rName.lowercase().contains(q)) {
+                              recentCard.addView(TextView(this).apply {
+                                  text = "• $rName (${item.getString("date")})"
+                                  textSize = 13f
+                                  setTextColor(textMuted)
+                                  setPadding(0, 6, 0, 6)
+                              })
+                              shownRecents++
+                          }
+                      }
+                      if (shownRecents == 0) {
+                          recentCard.addView(TextView(this).apply {
+                              text = "Tap '📂 Open' above to open .doc, .docx, .xls, .xlsx, .ppt, .pptx, or .pdf files."
+                              textSize = 13f
+                              setTextColor(textMuted)
+                          })
+                      }
+                      dynamicFeed.addView(recentCard)
+                  }
+
+                  searchBox.addTextChangedListener(object : TextWatcher {
+                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                      override fun afterTextChanged(s: Editable?) {
+                          homeFilterQuery = s?.toString() ?: ""
+                          renderFeed(homeFilterQuery)
+                      }
+                  })
+
+                  renderFeed(homeFilterQuery)
+                  workspaceContainer.addView(scroll)
+              }
+
+              // =========================================================================
+              // ALL APPS HUB
+              // =========================================================================
+              private fun renderAllAppsHub() {
+                  workspaceContainer.removeAllViews()
+                  headerTitleText.text = "Microsoft 365 Apps"
+                  headerBadgeText.text = "ALL TOOLS"
+                  (headerBadgeText.background as GradientDrawable).setColor(m365Orange)
+
+                  val scroll = ScrollView(this)
+                  val col = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(32, 28, 32, 48)
+                  }
+                  scroll.addView(col)
+
+                  val row1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                  row1.addView(appTile("📘", "Word", "Rich text, Bold/Italic, Read Aloud", wordBlue) {
+                      loadIntoEditor(LoadedOfficeFile("Document.docx", DocType.WORD_DOCX, null, wordHtml = ""), true)
+                  })
+                  row1.addView(appTile("📗", "Excel", "Formulas (=SUM, =AVG), Multi-sheet", excelGreen) {
+                      val grid = MutableList(16) { MutableList(7) { "" } }
+                      loadIntoEditor(LoadedOfficeFile("Workbook.xlsx", DocType.EXCEL_XLSX, null, sheets = linkedMapOf("Sheet1" to grid)), true)
+                  })
+                  col.addView(row1)
+
+                  val row2 = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      setPadding(0, 18, 0, 0)
+                  }
+                  row2.addView(appTile("📙", "PowerPoint", "5 Slide Themes, Formatting & Show", pptRed) {
+                      loadIntoEditor(LoadedOfficeFile("Presentation.pptx", DocType.PPT_PPTX, null, slides = mutableListOf(SlideItem("Slide 1", ""))), true)
+                  })
+                  row2.addView(appTile("📕", "PDF Suite", "View, Sign, Highlight & Comment", pdfCrimson) {
+                      openDocLauncher.launch(arrayOf("application/pdf"))
+                  })
+                  col.addView(row2)
+
+                  val row3 = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      setPadding(0, 18, 0, 0)
+                  }
+                  row3.addView(appTile("☑️", "To Do", "Save & Share as TXT or Word", todoBlue) {
+                      navigateTo(ScreenState.TODO)
+                  })
+                  row3.addView(appTile("🗒️", "Sticky Notes", "Color-coded quick notes", Color.parseColor("#CA8A04")) {
+                      navigateTo(ScreenState.NOTES)
+                  })
+                  col.addView(row3)
+
+                  val row4 = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      setPadding(0, 18, 0, 24)
+                  }
+                  row4.addView(appTile("📸", "Office Lens", "Image to PDF Scanner", lensTeal) {
+                      navigateTo(ScreenState.LENS)
+                  })
+                  row4.addView(appTile("ℹ️", "About", "WebDevFz • Version 1.0.0", Color.parseColor("#4B5563")) {
+                      navigateTo(ScreenState.ABOUT)
+                  })
+                  col.addView(row4)
+
+                  workspaceContainer.addView(scroll)
+              }
+
+              private fun renderOfficeLensTools() {
+                  workspaceContainer.removeAllViews()
+                  headerTitleText.text = "Office Lens & Actions"
+                  headerBadgeText.text = "M365 ACTIONS"
+                  (headerBadgeText.background as GradientDrawable).setColor(lensTeal)
+
+                  val col = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(36, 36, 36, 36)
+                  }
+                  val card = m365Card()
+                  card.addView(TextView(this).apply {
+                      text = "📸 Image to PDF Converter (Office Lens)"
+                      textSize = 18f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(lensTeal)
+                  })
+                  card.addView(TextView(this).apply {
+                      text = "Select any receipt, whiteboard photo, or document image from your phone to convert it into an editable, signable PDF document."
+                      textSize = 14f
+                      setTextColor(textMuted)
+                      setPadding(0, 10, 0, 20)
+                  })
+                  card.addView(Button(this).apply {
+                      text = "Choose Image & Convert to PDF"
+                      setBackgroundColor(lensTeal)
+                      setTextColor(Color.WHITE)
+                      setOnClickListener { scanImageLauncher.launch("image/*") }
+                  })
+                  col.addView(card)
+                  workspaceContainer.addView(col)
+              }
+
+              // =========================================================================
+              // 2. RICH WORD EDITOR
+              // =========================================================================
+              private fun renderWordEditor(file: LoadedOfficeFile) {
+                  workspaceContainer.removeAllViews()
+                  val outer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
+                  val ribbonScroll = HorizontalScrollView(this).apply {
+                      setBackgroundColor(Color.parseColor("#E1DFDD"))
+                      setPadding(16, 10, 16, 10)
+                  }
+                  val ribbon = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                  ribbonScroll.addView(ribbon)
+
+                  val editor = EditText(this).apply {
+                      setText(Html.fromHtml(file.wordHtml, Html.FROM_HTML_MODE_COMPACT))
+                      hint = "Type your Word document here..."
+                      textSize = 16f
+                      setTextColor(textDark)
+                      setBackgroundColor(Color.TRANSPARENT)
+                      gravity = Gravity.TOP or when (file.wordAlign) {
+                          "CENTER" -> Gravity.CENTER_HORIZONTAL
+                          "RIGHT" -> Gravity.END
+                          else -> Gravity.START
+                      }
+                      minLines = 18
+                      setLineSpacing(8f, 1.15f)
+                  }
+
+                  fun toggleSpan(style: Int) {
+                      val start = editor.selectionStart
+                      val end = editor.selectionEnd
+                      if (start >= 0 && end > start) {
+                          val str = editor.text as Spannable
+                          str.setSpan(StyleSpan(style), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                          file.wordHtml = Html.toHtml(editor.text, Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE)
+                      } else {
+                          Toast.makeText(this, "Highlight text first to format", Toast.LENGTH_SHORT).show()
+                      }
+                  }
+
+                  val boldBtn = ribbonBtn("B", Typeface.BOLD) { toggleSpan(Typeface.BOLD) }
+                  val italicBtn = ribbonBtn("I", Typeface.ITALIC) { toggleSpan(Typeface.ITALIC) }
+                  val underlineBtn = ribbonBtn("U", Typeface.NORMAL) {
+                      val start = editor.selectionStart
+                      val end = editor.selectionEnd
+                      if (start >= 0 && end > start) {
+                          (editor.text as Spannable).setSpan(UnderlineSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                          file.wordHtml = Html.toHtml(editor.text, Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE)
+                      } else {
+                          Toast.makeText(this, "Highlight text first to underline", Toast.LENGTH_SHORT).show()
+                      }
+                  }
+                  val bulletBtn = ribbonBtn("• List", Typeface.NORMAL) {
+                      val pos = maxOf(editor.selectionStart, 0)
+                      editor.text.insert(pos, "\n• ")
+                  }
+                  val alignBtn = ribbonBtn("⇄ Align", Typeface.NORMAL) {
+                      file.wordAlign = when (file.wordAlign) {
+                          "LEFT" -> "CENTER"
+                          "CENTER" -> "RIGHT"
+                          else -> "LEFT"
+                      }
+                      editor.gravity = Gravity.TOP or when (file.wordAlign) {
+                          "CENTER" -> Gravity.CENTER_HORIZONTAL
+                          "RIGHT" -> Gravity.END
+                          else -> Gravity.START
+                      }
+                      Toast.makeText(this, "Alignment: ${file.wordAlign}", Toast.LENGTH_SHORT).show()
+                  }
+                  val findBtn = ribbonBtn("🔍 Find", Typeface.NORMAL) {
+                      val input = EditText(this).apply { hint = "Find word in document..." }
+                      AlertDialog.Builder(this)
+                          .setTitle("Find Text")
+                          .setView(input)
+                          .setPositiveButton("Find") { _, _ ->
+                              val term = input.text.toString()
+                              val idx = editor.text.toString().indexOf(term, ignoreCase = true)
+                              if (idx >= 0 && term.isNotEmpty()) {
+                                  editor.requestFocus()
+                                  editor.setSelection(idx, idx + term.length)
+                              } else {
+                                  Toast.makeText(this, "Not found", Toast.LENGTH_SHORT).show()
+                              }
+                          }
+                          .setNegativeButton("Cancel", null)
+                          .show()
+                  }
+                  val readAloudBtn = ribbonBtn("🔊 Read", Typeface.NORMAL) {
+                      val plain = editor.text.toString().trim()
+                      if (plain.isNotEmpty()) {
+                          tts?.speak(plain.take(3500), TextToSpeech.QUEUE_FLUSH, null, "M365_READ")
+                          Toast.makeText(this, "Reading document aloud...", Toast.LENGTH_SHORT).show()
+                      }
+                  }
+
+                  listOf(boldBtn, italicBtn, underlineBtn, bulletBtn, alignBtn, findBtn, readAloudBtn).forEach {
+                      ribbon.addView(it)
+                  }
+                  outer.addView(ribbonScroll)
+
+                  val scroll = ScrollView(this).apply {
+                      setPadding(24, 20, 24, 24)
+                      layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+                  }
+                  val pageCard = m365Card().apply { setPadding(34, 34, 34, 34) }
+                  scroll.addView(pageCard)
+
+                  val statsText = TextView(this).apply {
+                      textSize = 12f
+                      setTextColor(textMuted)
+                      setPadding(0, 0, 0, 12)
+                  }
+                  pageCard.addView(statsText)
+
+                  fun updateStats(s: String) {
+                      val words = s.trim().split("\\s+".toRegex()).count { it.isNotEmpty() }
+                      statsText.text = "Words: $words  •  Chars: ${s.length}  •  Align: ${file.wordAlign}"
+                  }
+                  updateStats(editor.text.toString())
+
+                  editor.addTextChangedListener(object : TextWatcher {
+                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                      override fun afterTextChanged(s: Editable?) {
+                          file.wordHtml = Html.toHtml(editor.text, Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE)
+                          updateStats(s?.toString() ?: "")
+                      }
+                  })
+                  pageCard.addView(editor)
+                  outer.addView(scroll)
+                  workspaceContainer.addView(outer)
+              }
+
+              // =========================================================================
+              // 3. EXCEL SPREADSHEET EDITOR
+              // =========================================================================
+              private fun renderExcelEditor(file: LoadedOfficeFile) {
+                  workspaceContainer.removeAllViews()
+                  val container = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
+                  val grid = file.sheets[activeSheetName] ?: mutableListOf()
+                  var selectedRow = 0
+                  var selectedCol = 0
+
+                  val fxBar = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                      setBackgroundColor(Color.WHITE)
+                      setPadding(20, 10, 20, 10)
+                  }
+                  val cellRefBadge = TextView(this).apply {
+                      text = "A1"
+                      textSize = 13f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(excelGreen)
+                      setPadding(0, 0, 16, 0)
+                  }
+                  val fxLabel = TextView(this).apply {
+                      text = "fx  "
+                      textSize = 14f
+                      setTypeface(null, Typeface.ITALIC)
+                      setTextColor(textMuted)
+                  }
+                  val fxEdit = EditText(this).apply {
+                      hint = "Enter value or formula (=SUM(A1:A5))..."
+                      textSize = 14f
+                      setSingleLine(true)
+                      setTextColor(textDark)
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  }
+                  val applyFxBtn = Button(this).apply {
+                      text = "✓"
+                      setBackgroundColor(excelGreen)
+                      setTextColor(Color.WHITE)
+                  }
+                  fxBar.addView(cellRefBadge)
+                  fxBar.addView(fxLabel)
+                  fxBar.addView(fxEdit)
+                  fxBar.addView(applyFxBtn)
+                  container.addView(fxBar)
+
+                  val controlScroll = HorizontalScrollView(this).apply {
+                      setBackgroundColor(Color.parseColor("#E1DFDD"))
+                      setPadding(16, 10, 16, 10)
+                  }
+                  val controlRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                  }
+                  controlScroll.addView(controlRow)
+
+                  for (sName in file.sheets.keys) {
+                      val isSelected = sName == activeSheetName
+                      val tab = Button(this).apply {
+                          text = sName
+                          textSize = 12f
+                          setTextColor(if (isSelected) Color.WHITE else textDark)
+                          setBackgroundColor(if (isSelected) excelGreen else Color.WHITE)
+                          layoutParams = LinearLayout.LayoutParams(
+                              LinearLayout.LayoutParams.WRAP_CONTENT,
+                              LinearLayout.LayoutParams.WRAP_CONTENT
+                          ).apply { marginEnd = 10 }
+                          setOnClickListener {
+                              activeSheetName = sName
+                              renderExcelEditor(file)
+                          }
+                      }
+                      controlRow.addView(tab)
+                  }
+
+                  controlRow.addView(ribbonBtn("∑ AutoSum", Typeface.BOLD) {
+                      if (selectedRow > 0 && selectedRow in grid.indices && selectedCol in grid[selectedRow].indices) {
+                          val colName = colLetter(selectedCol)
+                          grid[selectedRow][selectedCol] = "=SUM(${colName}1:${colName}${selectedRow})"
+                          renderExcelEditor(file)
+                      }
+                  })
+                  controlRow.addView(ribbonBtn("+ Sheet", Typeface.NORMAL) {
+                      val nextName = "Sheet${file.sheets.size + 1}"
+                      file.sheets[nextName] = MutableList(16) { MutableList(7) { "" } }
+                      activeSheetName = nextName
+                      renderExcelEditor(file)
+                  })
+                  controlRow.addView(ribbonBtn("+ Row", Typeface.NORMAL) {
+                      val cols = grid.firstOrNull()?.size ?: 7
+                      grid.add(MutableList(cols) { "" })
+                      renderExcelEditor(file)
+                  })
+                  controlRow.addView(ribbonBtn("+ Col", Typeface.NORMAL) {
+                      for (row in grid) row.add("")
+                      renderExcelEditor(file)
+                  })
+                  container.addView(controlScroll)
+
+                  applyFxBtn.setOnClickListener {
+                      if (selectedRow in grid.indices && selectedCol in grid[selectedRow].indices) {
+                          grid[selectedRow][selectedCol] = fxEdit.text.toString()
+                          renderExcelEditor(file)
+                      }
+                  }
+
+                  val vScroll = ScrollView(this)
+                  val hScroll = HorizontalScrollView(this)
+                  val table = TableLayout(this).apply { setPadding(16, 16, 16, 48) }
+                  hScroll.addView(table)
+                  vScroll.addView(hScroll)
+
+                  val colCount = grid.firstOrNull()?.size ?: 7
+                  val headerRow = TableRow(this)
+                  headerRow.addView(cellHeaderView("#", 90))
+                  for (c in 0 until colCount) headerRow.addView(cellHeaderView(colLetter(c), 240))
+                  table.addView(headerRow)
+
+                  for (r in grid.indices) {
+                      val tr = TableRow(this)
+                      tr.addView(cellHeaderView("${r + 1}", 90))
+                      val rowCells = grid[r]
+                      for (c in 0 until colCount) {
+                          val raw = rowCells[c]
+                          val displayVal = OfficeEngine.evaluateCellDisplay(raw, grid)
+                          val cellEdit = EditText(this).apply {
+                              setText(displayVal)
+                              textSize = 14f
+                              setTextColor(if (raw.startsWith("=")) excelGreen else textDark)
+                              setTypeface(null, if (raw.startsWith("=")) Typeface.BOLD else Typeface.NORMAL)
+                              setSingleLine(true)
+                              setPadding(16, 14, 16, 14)
+                              width = 240
+                              background = GradientDrawable().apply {
+                                  setColor(Color.WHITE)
+                                  setStroke(1, borderSubtle)
+                              }
+                          }
+                          cellEdit.setOnFocusChangeListener { _, hasFocus ->
+                              if (hasFocus) {
+                                  selectedRow = r
+                                  selectedCol = c
+                                  cellRefBadge.text = "${colLetter(c)}${r + 1}"
+                                  fxEdit.setText(rowCells[c])
+                              } else {
+                                  val entered = cellEdit.text.toString()
+                                  if (entered != OfficeEngine.evaluateCellDisplay(rowCells[c], grid)) {
+                                      rowCells[c] = entered
+                                  }
+                              }
+                          }
+                          cellEdit.addTextChangedListener(object : TextWatcher {
+                              override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                              override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                              override fun afterTextChanged(s: Editable?) {
+                                  if (cellEdit.hasFocus()) {
+                                      rowCells[c] = s?.toString() ?: ""
+                                  }
+                              }
+                          })
+                          tr.addView(cellEdit)
+                      }
+                      table.addView(tr)
+                  }
+
+                  container.addView(vScroll)
+                  workspaceContainer.addView(container)
+              }
+
+              // =========================================================================
+              // 4. POWERPOINT EDITOR (SLIDE THEMES, FORMATTING RIBBON & SLIDESHOW MODE)
+              // =========================================================================
+              private fun renderPowerPointEditor(file: LoadedOfficeFile) {
+                  workspaceContainer.removeAllViews()
+                  if (file.slides.isEmpty()) file.slides.add(SlideItem("Slide 1", ""))
+                  if (activeSlideIndex >= file.slides.size) activeSlideIndex = file.slides.size - 1
+                  val currentSlide = file.slides[activeSlideIndex]
+                  val theme = currentSlide.theme
+
+                  // Full-Screen Slideshow Mode respecting Slide Theme & Formatting
+                  if (isPresentationMode) {
+                      val presLayout = LinearLayout(this).apply {
+                          orientation = LinearLayout.VERTICAL
+                          gravity = Gravity.CENTER
+                          setBackgroundColor(Color.parseColor(theme.bgColorHex))
+                          setPadding(48, 48, 48, 48)
+                      }
+                      val alignGravity = when (currentSlide.align) {
+                          "CENTER" -> Gravity.CENTER_HORIZONTAL
+                          "RIGHT" -> Gravity.END
+                          else -> Gravity.START
+                      }
+                      val titleStyle = when {
+                          currentSlide.titleBold && currentSlide.titleItalic -> Typeface.BOLD_ITALIC
+                          currentSlide.titleBold -> Typeface.BOLD
+                          currentSlide.titleItalic -> Typeface.ITALIC
+                          else -> Typeface.NORMAL
+                      }
+                      val bodyStyle = when {
+                          currentSlide.bodyBold && currentSlide.bodyItalic -> Typeface.BOLD_ITALIC
+                          currentSlide.bodyBold -> Typeface.BOLD
+                          currentSlide.bodyItalic -> Typeface.ITALIC
+                          else -> Typeface.NORMAL
+                      }
+
+                      presLayout.addView(TextView(this).apply {
+                          text = currentSlide.title
+                          textSize = 28f
+                          setTypeface(null, titleStyle)
+                          setTextColor(Color.parseColor(theme.titleColorHex))
+                          gravity = alignGravity
+                          layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                          setPadding(0, 0, 0, 32)
+                      })
+                      presLayout.addView(TextView(this).apply {
+                          text = currentSlide.body
+                          textSize = 20f
+                          setTypeface(null, bodyStyle)
+                          setTextColor(Color.parseColor(theme.bodyColorHex))
+                          gravity = alignGravity
+                          layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+                      })
+                      val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                      controls.addView(Button(this).apply {
+                          text = "◀ Prev"
+                          isEnabled = activeSlideIndex > 0
+                          setOnClickListener { activeSlideIndex--; renderPowerPointEditor(file) }
+                      })
+                      controls.addView(Button(this).apply {
+                          text = "Exit Slideshow"
+                          setBackgroundColor(Color.parseColor(theme.accentColorHex))
+                          setTextColor(Color.WHITE)
+                          layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                              marginStart = 12; marginEnd = 12
+                          }
+                          setOnClickListener { isPresentationMode = false; renderPowerPointEditor(file) }
+                      })
+                      controls.addView(Button(this).apply {
+                          text = "Next ▶"
+                          isEnabled = activeSlideIndex < file.slides.size - 1
+                          setOnClickListener { activeSlideIndex++; renderPowerPointEditor(file) }
+                      })
+                      presLayout.addView(controls)
+                      workspaceContainer.addView(presLayout)
+                      return
+                  }
+
+                  val container = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                  }
+
+                  // PowerPoint Formatting & Slide Style Ribbon
+                  val pptRibbonScroll = HorizontalScrollView(this).apply {
+                      setBackgroundColor(Color.parseColor("#E1DFDD"))
+                      setPadding(16, 10, 16, 10)
+                  }
+                  val pptRibbon = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                  pptRibbonScroll.addView(pptRibbon)
+
+                  pptRibbon.addView(ribbonBtn("🎨 Theme: ${theme.label}", Typeface.BOLD) {
+                      val themes = SlideTheme.values()
+                      val names = themes.map { it.label }.toTypedArray()
+                      AlertDialog.Builder(this)
+                          .setTitle("Choose Slide Design Theme")
+                          .setItems(names) { _, idx ->
+                              currentSlide.theme = themes[idx]
+                              renderPowerPointEditor(file)
+                          }
+                          .show()
+                  })
+                  pptRibbon.addView(ribbonBtn("B Title", Typeface.BOLD) {
+                      currentSlide.titleBold = !currentSlide.titleBold
+                      renderPowerPointEditor(file)
+                  })
+                  pptRibbon.addView(ribbonBtn("I Title", Typeface.ITALIC) {
+                      currentSlide.titleItalic = !currentSlide.titleItalic
+                      renderPowerPointEditor(file)
+                  })
+                  pptRibbon.addView(ribbonBtn("B Body", Typeface.BOLD) {
+                      currentSlide.bodyBold = !currentSlide.bodyBold
+                      renderPowerPointEditor(file)
+                  })
+                  pptRibbon.addView(ribbonBtn("I Body", Typeface.ITALIC) {
+                      currentSlide.bodyItalic = !currentSlide.bodyItalic
+                      renderPowerPointEditor(file)
+                  })
+                  pptRibbon.addView(ribbonBtn("• Bullet", Typeface.NORMAL) {
+                      currentSlide.body = if (currentSlide.body.isEmpty()) "• " else currentSlide.body + "\n• "
+                      renderPowerPointEditor(file)
+                  })
+                  pptRibbon.addView(ribbonBtn("⇄ ${currentSlide.align}", Typeface.NORMAL) {
+                      currentSlide.align = when (currentSlide.align) {
+                          "LEFT" -> "CENTER"
+                          "CENTER" -> "RIGHT"
+                          else -> "LEFT"
+                      }
+                      renderPowerPointEditor(file)
+                  })
+                  container.addView(pptRibbonScroll)
+
+                  val innerEditor = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(24, 16, 24, 20)
+                      layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+                  }
+
+                  val navRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                      setPadding(0, 0, 0, 12)
+                  }
+                  val prevBtn = Button(this).apply {
+                      text = "◀"
+                      isEnabled = activeSlideIndex > 0
+                      setOnClickListener { activeSlideIndex--; renderPowerPointEditor(file) }
+                  }
+                  val slideCounter = TextView(this).apply {
+                      text = "Slide ${activeSlideIndex + 1} / ${file.slides.size}"
+                      textSize = 15f
+                      setTypeface(null, Typeface.BOLD)
+                      gravity = Gravity.CENTER
+                      setTextColor(textDark)
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  }
+                  val presentBtn = Button(this).apply {
+                      text = "▶ Present"
+                      setBackgroundColor(pptRed)
+                      setTextColor(Color.WHITE)
+                      setOnClickListener { isPresentationMode = true; renderPowerPointEditor(file) }
+                  }
+                  val nextBtn = Button(this).apply {
+                      text = "▶"
+                      isEnabled = activeSlideIndex < file.slides.size - 1
+                      setOnClickListener { activeSlideIndex++; renderPowerPointEditor(file) }
+                  }
+                  navRow.addView(prevBtn)
+                  navRow.addView(slideCounter)
+                  navRow.addView(presentBtn)
+                  navRow.addView(nextBtn)
+                  innerEditor.addView(navRow)
+
+                  // Styled Slide Canvas
+                  val slideCard = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(30, 28, 30, 28)
+                      background = GradientDrawable().apply {
+                          setColor(Color.parseColor(theme.bgColorHex))
+                          cornerRadius = 20f
+                          setStroke(5, Color.parseColor(theme.accentColorHex))
+                      }
+                      layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+                  }
+
+                  val alignGravity = when (currentSlide.align) {
+                      "CENTER" -> Gravity.CENTER_HORIZONTAL
+                      "RIGHT" -> Gravity.END
+                      else -> Gravity.START
+                  }
+                  val titleStyle = when {
+                      currentSlide.titleBold && currentSlide.titleItalic -> Typeface.BOLD_ITALIC
+                      currentSlide.titleBold -> Typeface.BOLD
+                      currentSlide.titleItalic -> Typeface.ITALIC
+                      else -> Typeface.NORMAL
+                  }
+                  val bodyStyle = when {
+                      currentSlide.bodyBold && currentSlide.bodyItalic -> Typeface.BOLD_ITALIC
+                      currentSlide.bodyBold -> Typeface.BOLD
+                      currentSlide.bodyItalic -> Typeface.ITALIC
+                      else -> Typeface.NORMAL
+                  }
+
+                  val titleInput = EditText(this).apply {
+                      setText(currentSlide.title)
+                      hint = "Slide Title"
+                      textSize = 20f
+                      setTypeface(null, titleStyle)
+                      setTextColor(Color.parseColor(theme.titleColorHex))
+                      setHintTextColor(Color.GRAY)
+                      gravity = alignGravity
+                  }
+                  titleInput.addTextChangedListener(object : TextWatcher {
+                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                      override fun afterTextChanged(s: Editable?) { currentSlide.title = s?.toString() ?: "" }
+                  })
+
+                  val bodyInput = EditText(this).apply {
+                      setText(currentSlide.body)
+                      hint = "Slide content & bullets..."
+                      textSize = 15f
+                      setTypeface(null, bodyStyle)
+                      setTextColor(Color.parseColor(theme.bodyColorHex))
+                      setHintTextColor(Color.GRAY)
+                      gravity = Gravity.TOP or alignGravity
+                      setBackgroundColor(Color.TRANSPARENT)
+                      setPadding(12, 16, 12, 16)
+                      layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = 10 }
+                  }
+                  bodyInput.addTextChangedListener(object : TextWatcher {
+                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                      override fun afterTextChanged(s: Editable?) { currentSlide.body = s?.toString() ?: "" }
+                  })
+
+                  val speakerNotesInput = EditText(this).apply {
+                      setText(currentSlide.speakerNotes)
+                      hint = "🎙️ Speaker notes..."
+                      textSize = 12f
+                      setTextColor(Color.GRAY)
+                      setSingleLine(true)
+                      layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = 8 }
+                  }
+                  speakerNotesInput.addTextChangedListener(object : TextWatcher {
+                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                      override fun afterTextChanged(s: Editable?) { currentSlide.speakerNotes = s?.toString() ?: "" }
+                  })
+
+                  slideCard.addView(titleInput)
+                  slideCard.addView(bodyInput)
+                  slideCard.addView(speakerNotesInput)
+                  innerEditor.addView(slideCard)
+
+                  val slideActions = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      setPadding(0, 14, 0, 0)
+                  }
+                  val addSlideBtn = Button(this).apply {
+                      text = "+ Add Slide"
+                      setBackgroundColor(pptRed)
+                      setTextColor(Color.WHITE)
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = 10 }
+                      setOnClickListener {
+                          file.slides.add(activeSlideIndex + 1, SlideItem("Slide ${file.slides.size + 1}", "• ", theme = currentSlide.theme))
+                          activeSlideIndex++
+                          renderPowerPointEditor(file)
+                      }
+                  }
+                  val delSlideBtn = Button(this).apply {
+                      text = "🗑️ Delete Slide"
+                      isEnabled = file.slides.size > 1
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = 10 }
+                      setOnClickListener {
+                          if (file.slides.size > 1) {
+                              file.slides.removeAt(activeSlideIndex)
+                              if (activeSlideIndex >= file.slides.size) activeSlideIndex = file.slides.size - 1
+                              renderPowerPointEditor(file)
+                          }
+                      }
+                  }
+                  slideActions.addView(addSlideBtn)
+                  slideActions.addView(delSlideBtn)
+                  innerEditor.addView(slideActions)
+                  container.addView(innerEditor)
+                  workspaceContainer.addView(container)
+              }
+
+              // =========================================================================
+              // 5. PDF VIEWER, HIGHLIGHTER, COMMENTER & DIGITAL SIGNATURE PAD
+              // =========================================================================
+              private fun renderPdfViewerAndEditor(file: LoadedOfficeFile) {
+                  workspaceContainer.removeAllViews()
+                  val container = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(24, 18, 24, 18)
+                  }
+
+                  val navRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                      setPadding(0, 0, 0, 12)
+                  }
+                  val prevBtn = Button(this).apply {
+                      text = "◀"
+                      isEnabled = activePdfPage > 0
+                      setOnClickListener { activePdfPage--; renderPdfViewerAndEditor(file) }
+                  }
+                  val pageIndicator = TextView(this).apply {
+                      text = "Page ${activePdfPage + 1} / ${file.pdfPageCount}"
+                      textSize = 15f
+                      setTypeface(null, Typeface.BOLD)
+                      gravity = Gravity.CENTER
+                      setTextColor(textDark)
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  }
+                  val signBtn = Button(this).apply {
+                      text = "✒️ Sign PDF"
+                      setBackgroundColor(pdfCrimson)
+                      setTextColor(Color.WHITE)
+                      setOnClickListener { showSignaturePadDialog(file) }
+                  }
+                  val nextBtn = Button(this).apply {
+                      text = "▶"
+                      isEnabled = activePdfPage < file.pdfPageCount - 1
+                      setOnClickListener { activePdfPage++; renderPdfViewerAndEditor(file) }
+                  }
+                  navRow.addView(prevBtn)
+                  navRow.addView(pageIndicator)
+                  navRow.addView(signBtn)
+                  navRow.addView(nextBtn)
+                  container.addView(navRow)
+
+                  val scroll = ScrollView(this).apply {
+                      layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+                  }
+                  val inner = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  scroll.addView(inner)
+
+                  val path = file.pdfCachedPath
+                  if (path != null) {
+                      val bmp = OfficeEngine.renderPdfPageBitmap(path, activePdfPage)
+                      if (bmp != null) {
+                          val imgView = ImageView(this).apply {
+                              setImageBitmap(bmp)
+                              adjustViewBounds = true
+                              setBackgroundColor(Color.WHITE)
+                              setPadding(8, 8, 8, 8)
+                              layoutParams = LinearLayout.LayoutParams(
+                                  LinearLayout.LayoutParams.MATCH_PARENT,
+                                  LinearLayout.LayoutParams.WRAP_CONTENT
+                              ).apply { bottomMargin = 16 }
+                          }
+                          inner.addView(imgView)
+                      }
+                  }
+
+                  while (file.pdfAnnotations.size <= activePdfPage) file.pdfAnnotations.add("")
+                  while (file.pdfHighlights.size <= activePdfPage) file.pdfHighlights.add("")
+
+                  val noteCard = m365Card()
+                  if (file.pdfSignatures.containsKey(activePdfPage)) {
+                      noteCard.addView(TextView(this).apply {
+                          text = "✅ Digital signature attached to Page ${activePdfPage + 1}"
+                          textSize = 13f
+                          setTypeface(null, Typeface.BOLD)
+                          setTextColor(excelGreen)
+                          setPadding(0, 0, 0, 8)
+                      })
+                  }
+
+                  noteCard.addView(TextView(this).apply {
+                      text = "🖍️ Highlight Banner / Key Callout"
+                      textSize = 13f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(Color.parseColor("#B45309"))
+                  })
+                  val hlInput = EditText(this).apply {
+                      setText(file.pdfHighlights[activePdfPage])
+                      hint = "Highlighted text banner for Page ${activePdfPage + 1}..."
+                      setTextColor(textDark)
+                  }
+                  hlInput.addTextChangedListener(object : TextWatcher {
+                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                      override fun afterTextChanged(s: Editable?) { file.pdfHighlights[activePdfPage] = s?.toString() ?: "" }
+                  })
+                  noteCard.addView(hlInput)
+
+                  noteCard.addView(TextView(this).apply {
+                      text = if (path != null) "💬 Page Comment / Annotation" else "📄 PDF Page Content"
+                      textSize = 13f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(pdfCrimson)
+                      setPadding(0, 12, 0, 4)
+                  })
+                  val noteInput = EditText(this).apply {
+                      setText(file.pdfAnnotations[activePdfPage])
+                      hint = "Type text or comment for Page ${activePdfPage + 1}..."
+                      minLines = if (path != null) 3 else 12
+                      gravity = Gravity.TOP or Gravity.START
+                      setTextColor(textDark)
+                  }
+                  noteInput.addTextChangedListener(object : TextWatcher {
+                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                      override fun afterTextChanged(s: Editable?) { file.pdfAnnotations[activePdfPage] = s?.toString() ?: "" }
+                  })
+                  noteCard.addView(noteInput)
+                  inner.addView(noteCard)
+
+                  container.addView(scroll)
+                  workspaceContainer.addView(container)
+              }
+
+              private fun showSignaturePadDialog(file: LoadedOfficeFile) {
+                  val pad = SignatureDrawView(this).apply {
+                      layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 420)
+                  }
+                  AlertDialog.Builder(this)
+                      .setTitle("✒️ Draw Your Signature")
+                      .setView(pad)
+                      .setPositiveButton("Attach to Page ${activePdfPage + 1}") { _, _ ->
+                          file.pdfSignatures[activePdfPage] = pad.exportBitmap()
+                          renderPdfViewerAndEditor(file)
+                          Toast.makeText(this, "Signature attached! Tap Save to export PDF.", Toast.LENGTH_SHORT).show()
+                      }
+                      .setNeutralButton("Clear") { _, _ -> showSignaturePadDialog(file) }
+                      .setNegativeButton("Cancel", null)
+                      .show()
+              }
+
+              // =========================================================================
+              // 6. MICROSOFT TO DO (SAVE ON MOBILE + SHARE AS TXT OR WORD DOC)
+              // =========================================================================
+              private fun renderToDoApp() {
+                  workspaceContainer.removeAllViews()
+                  headerTitleText.text = "Microsoft To Do"
+                  headerBadgeText.text = "SAVED ON PHONE"
+                  (headerBadgeText.background as GradientDrawable).setColor(todoBlue)
+
+                  val scroll = ScrollView(this)
+                  val col = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(32, 28, 32, 48)
+                  }
+                  scroll.addView(col)
+
+                  val addCard = m365Card()
+                  addCard.addView(TextView(this).apply {
+                      text = "☑️ Add Task to Mobile Storage"
+                      textSize = 16f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(todoBlue)
+                      setPadding(0, 0, 0, 10)
+                  })
+
+                  val taskTitleInput = EditText(this).apply {
+                      hint = "Task title..."
+                      setTextColor(textDark)
+                  }
+                  val taskNoteInput = EditText(this).apply {
+                      hint = "Notes / due date..."
+                      textSize = 14f
+                      setTextColor(textMuted)
+                  }
+                  val btnRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      setPadding(0, 8, 0, 0)
+                  }
+                  val addTaskBtn = Button(this).apply {
+                      text = "+ Save Task"
+                      setBackgroundColor(todoBlue)
+                      setTextColor(Color.WHITE)
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = 8 }
+                  }
+                  val shareListBtn = Button(this).apply {
+                      text = "📤 Share List (TXT / Word)"
+                      setBackgroundColor(excelGreen)
+                      setTextColor(Color.WHITE)
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = 8 }
+                  }
+                  btnRow.addView(addTaskBtn)
+                  btnRow.addView(shareListBtn)
+
+                  addCard.addView(taskTitleInput)
+                  addCard.addView(taskNoteInput)
+                  addCard.addView(btnRow)
+                  col.addView(addCard)
+
+                  shareListBtn.setOnClickListener {
+                      val tasks = getTodoList()
+                      if (tasks.length() == 0) {
+                          Toast.makeText(this, "Add at least one task before sharing.", Toast.LENGTH_SHORT).show()
+                          return@setOnClickListener
+                      }
+                      val shareOptions = arrayOf(
+                          "📄 Share as Plain Text File (.txt) via WhatsApp / Apps",
+                          "📘 Share as Word Document (.docx) via WhatsApp / Apps",
+                          "💬 Share as Direct Text Message"
+                      )
+                      AlertDialog.Builder(this)
+                          .setTitle("Share To Do List")
+                          .setItems(shareOptions) { _, choice ->
+                              when (choice) {
+                                  0 -> {
+                                      val txtFile = OfficeEngine.exportTodoListAsTxtFile(this, tasks)
+                                      shareFileViaChooser(txtFile, "text/plain", "Share To Do (.txt)")
+                                  }
+                                  1 -> {
+                                      val docxFile = OfficeEngine.exportTodoListAsWordFile(this, tasks)
+                                      shareFileViaChooser(
+                                          docxFile,
+                                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                          "Share To Do (.docx)"
+                                      )
+                                  }
+                                  2 -> {
+                                      val txtFile = OfficeEngine.exportTodoListAsTxtFile(this, tasks)
+                                      val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                          type = "text/plain"
+                                          putExtra(Intent.EXTRA_TEXT, txtFile.readText())
+                                      }
+                                      startActivity(Intent.createChooser(sendIntent, "Share To Do Message"))
+                                  }
+                              }
+                          }
+                          .show()
+                  }
+
+                  val listContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  col.addView(listContainer)
+
+                  fun refreshTasksUI() {
+                      listContainer.removeAllViews()
+                      val arr = getTodoList()
+                      if (arr.length() == 0) {
+                          listContainer.addView(TextView(this).apply {
+                              text = "No tasks yet. Tasks added here stay saved on your mobile."
+                              textSize = 14f
+                              setTextColor(textMuted)
+                              setPadding(8, 16, 8, 16)
+                          })
+                          return
+                      }
+                      for (i in 0 until arr.length()) {
+                          val obj = arr.getJSONObject(i)
+                          val title = obj.getString("title")
+                          val note = obj.optString("note", "")
+                          val done = obj.optBoolean("done", false)
+                          val starred = obj.optBoolean("starred", false)
+
+                          val itemCard = m365Card().apply {
+                              setPadding(24, 16, 24, 16)
+                              (layoutParams as LinearLayout.LayoutParams).bottomMargin = 14
+                          }
+                          val row = LinearLayout(this).apply {
+                              orientation = LinearLayout.HORIZONTAL
+                              gravity = Gravity.CENTER_VERTICAL
+                          }
+                          val cb = CheckBox(this).apply {
+                              isChecked = done
+                              setOnCheckedChangeListener { _, checked ->
+                                  val cur = getTodoList()
+                                  if (i < cur.length()) {
+                                      cur.getJSONObject(i).put("done", checked)
+                                      saveTodoList(cur)
+                                      refreshTasksUI()
+                                  }
+                              }
+                          }
+                          val textCol = LinearLayout(this).apply {
+                              orientation = LinearLayout.VERTICAL
+                              layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                          }
+                          textCol.addView(TextView(this).apply {
+                              text = title
+                              textSize = 15f
+                              setTypeface(null, if (starred) Typeface.BOLD else Typeface.NORMAL)
+                              setTextColor(if (done) textMuted else textDark)
+                              paintFlags = if (done) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+                          })
+                          if (note.isNotEmpty()) {
+                              textCol.addView(TextView(this).apply {
+                                  text = note
+                                  textSize = 12f
+                                  setTextColor(textMuted)
+                              })
+                          }
+                          val starBtn = Button(this).apply {
+                              text = if (starred) "⭐" else "☆"
+                              setBackgroundColor(Color.TRANSPARENT)
+                              setOnClickListener {
+                                  val cur = getTodoList()
+                                  if (i < cur.length()) {
+                                      cur.getJSONObject(i).put("starred", !starred)
+                                      saveTodoList(cur)
+                                      refreshTasksUI()
+                                  }
+                              }
+                          }
+                          val delBtn = Button(this).apply {
+                              text = "🗑️"
+                              setBackgroundColor(Color.TRANSPARENT)
+                              setOnClickListener {
+                                  val cur = getTodoList()
+                                  val next = JSONArray()
+                                  for (j in 0 until cur.length()) if (j != i) next.put(cur.getJSONObject(j))
+                                  saveTodoList(next)
+                                  refreshTasksUI()
+                              }
+                          }
+                          row.addView(cb); row.addView(textCol); row.addView(starBtn); row.addView(delBtn)
+                          itemCard.addView(row)
+                          listContainer.addView(itemCard)
+                      }
+                  }
+
+                  addTaskBtn.setOnClickListener {
+                      val t = taskTitleInput.text.toString().trim()
+                      if (t.isNotEmpty()) {
+                          val arr = getTodoList()
+                          arr.put(JSONObject().apply {
+                              put("title", t)
+                              put("note", taskNoteInput.text.toString().trim())
+                              put("done", false)
+                              put("starred", false)
+                          })
+                          saveTodoList(arr)
+                          taskTitleInput.setText("")
+                          taskNoteInput.setText("")
+                          refreshTasksUI()
+                          Toast.makeText(this, "☑️ Task saved!", Toast.LENGTH_SHORT).show()
+                      }
+                  }
+
+                  refreshTasksUI()
+                  workspaceContainer.addView(scroll)
+              }
+
+              private fun shareFileViaChooser(file: File, mimeType: String, chooserTitle: String) {
+                  try {
+                      val contentUri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+                      val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                          type = mimeType
+                          putExtra(Intent.EXTRA_STREAM, contentUri)
+                          addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                      }
+                      startActivity(Intent.createChooser(shareIntent, chooserTitle))
+                  } catch (e: Exception) {
+                      Toast.makeText(this, "Share error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                  }
+              }
+
+              // =========================================================================
+              // 7. STICKY NOTES
+              // =========================================================================
+              private fun renderStickyNotesApp() {
+                  workspaceContainer.removeAllViews()
+                  headerTitleText.text = "Sticky Notes"
+                  headerBadgeText.text = "M365 NOTES"
+                  (headerBadgeText.background as GradientDrawable).setColor(Color.parseColor("#CA8A04"))
+
+                  val scroll = ScrollView(this)
+                  val col = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(32, 28, 32, 48)
+                  }
+                  scroll.addView(col)
+
+                  val addCard = m365Card().apply {
+                      background = GradientDrawable().apply {
+                          setColor(stickyYellow)
+                          cornerRadius = 20f
+                          setStroke(2, Color.parseColor("#EAB308"))
+                      }
+                  }
+                  val noteInput = EditText(this).apply {
+                      hint = "Take a quick Sticky Note..."
+                      minLines = 3
+                      gravity = Gravity.TOP or Gravity.START
+                      setTextColor(textDark)
+                      setBackgroundColor(Color.TRANSPARENT)
+                  }
+                  val saveNoteBtn = Button(this).apply {
+                      text = "+ Save Sticky Note"
+                      setBackgroundColor(Color.parseColor("#A16207"))
+                      setTextColor(Color.WHITE)
+                  }
+                  addCard.addView(noteInput)
+                  addCard.addView(saveNoteBtn)
+                  col.addView(addCard)
+
+                  val notesList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  col.addView(notesList)
+
+                  fun refreshNotes() {
+                      notesList.removeAllViews()
+                      val arr = getStickyNotes()
+                      for (i in 0 until arr.length()) {
+                          val obj = arr.getJSONObject(i)
+                          val card = m365Card().apply {
+                              background = GradientDrawable().apply {
+                                  setColor(Color.parseColor("#FEF9C3"))
+                                  cornerRadius = 18f
+                                  setStroke(2, Color.parseColor("#FDE047"))
+                              }
+                          }
+                          card.addView(TextView(this).apply {
+                              text = obj.getString("body")
+                              textSize = 15f
+                              setTextColor(textDark)
+                          })
+                          val footer = LinearLayout(this).apply {
+                              orientation = LinearLayout.HORIZONTAL
+                              gravity = Gravity.CENTER_VERTICAL
+                              setPadding(0, 10, 0, 0)
+                          }
+                          footer.addView(TextView(this).apply {
+                              text = obj.optString("date", "")
+                              textSize = 11f
+                              setTextColor(textMuted)
+                              layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                          })
+                          footer.addView(Button(this).apply {
+                              text = "Delete"
+                              textSize = 11f
+                              setBackgroundColor(Color.TRANSPARENT)
+                              setTextColor(pdfCrimson)
+                              setOnClickListener {
+                                  val cur = getStickyNotes()
+                                  val next = JSONArray()
+                                  for (j in 0 until cur.length()) if (j != i) next.put(cur.getJSONObject(j))
+                                  saveStickyNotes(next)
+                                  refreshNotes()
+                              }
+                          })
+                          card.addView(footer)
+                          notesList.addView(card)
+                      }
+                  }
+
+                  saveNoteBtn.setOnClickListener {
+                      val txt = noteInput.text.toString().trim()
+                      if (txt.isNotEmpty()) {
+                          val arr = getStickyNotes()
+                          arr.put(JSONObject().apply {
+                              put("body", txt)
+                              put("date", SimpleDateFormat("MMM d, hh:mm a", Locale.getDefault()).format(Date()))
+                          })
+                          saveStickyNotes(arr)
+                          noteInput.setText("")
+                          refreshNotes()
+                      }
+                  }
+
+                  refreshNotes()
+                  workspaceContainer.addView(scroll)
+              }
+
+              // =========================================================================
+              // PERSISTENCE & UI HELPERS
+              // =========================================================================
+              private fun getTodoList(): JSONArray {
+                  val raw = getSharedPreferences("m365_prefs", Context.MODE_PRIVATE).getString("todo_items", "[]") ?: "[]"
+                  return JSONArray(raw)
+              }
+
+              private fun saveTodoList(arr: JSONArray) {
+                  getSharedPreferences("m365_prefs", Context.MODE_PRIVATE).edit().putString("todo_items", arr.toString()).apply()
+              }
+
+              private fun getStickyNotes(): JSONArray {
+                  val raw = getSharedPreferences("m365_prefs", Context.MODE_PRIVATE).getString("sticky_notes", "[]") ?: "[]"
+                  return JSONArray(raw)
+              }
+
+              private fun saveStickyNotes(arr: JSONArray) {
+                  getSharedPreferences("m365_prefs", Context.MODE_PRIVATE).edit().putString("sticky_notes", arr.toString()).apply()
+              }
+
+              private fun getRecentFiles(): JSONArray {
+                  val raw = getSharedPreferences("m365_prefs", Context.MODE_PRIVATE).getString("recent_files", "[]") ?: "[]"
+                  return JSONArray(raw)
+              }
+
+              private fun recordRecentFile(name: String, type: String) {
+                  val prefs = getSharedPreferences("m365_prefs", Context.MODE_PRIVATE)
+                  val arr = JSONArray(prefs.getString("recent_files", "[]") ?: "[]")
+                  val next = JSONArray()
+                  next.put(JSONObject().apply {
+                      put("name", name)
+                      put("type", type)
+                      put("date", SimpleDateFormat("MMM d, hh:mm a", Locale.getDefault()).format(Date()))
+                  })
+                  for (i in 0 until minOf(arr.length(), 4)) {
+                      val prev = arr.getJSONObject(i)
+                      if (prev.getString("name") != name) next.put(prev)
+                  }
+                  prefs.edit().putString("recent_files", next.toString()).apply()
+              }
+
+              private fun colLetter(index: Int): String {
+                  var n = index
+                  var sb = ""
+                  while (n >= 0) {
+                      sb = ('A' + (n % 26)) + sb
+                      n = (n / 26) - 1
+                  }
+                  return sb
+              }
+
+              private fun cellHeaderView(label: String, cellWidth: Int): TextView {
+                  return TextView(this).apply {
+                      text = label
+                      textSize = 13f
+                      setTypeface(null, Typeface.BOLD)
+                      gravity = Gravity.CENTER
+                      setTextColor(textDark)
+                      setPadding(12, 14, 12, 14)
+                      width = cellWidth
+                      background = GradientDrawable().apply {
+                          setColor(Color.parseColor("#EDEBE9"))
+                          setStroke(1, borderSubtle)
+                      }
+                  }
+              }
+
+              private fun pillButton(label: String, bgColor: Int): Button {
+                  return Button(this).apply {
+                      text = label
+                      textSize = 12f
+                      setTextColor(Color.WHITE)
+                      setPadding(10, 6, 10, 6)
+                      background = GradientDrawable().apply {
+                          setColor(bgColor)
+                          cornerRadius = 16f
+                      }
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  }
+              }
+
+              private fun ribbonBtn(label: String, style: Int, onClick: () -> Unit): Button {
+                  return Button(this).apply {
+                      text = label
+                      textSize = 12f
+                      setTypeface(null, style)
+                      setTextColor(textDark)
+                      setBackgroundColor(Color.WHITE)
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.WRAP_CONTENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply { marginEnd = 8 }
+                      setOnClickListener { onClick() }
+                  }
+              }
+
+              private fun miniAppChip(label: String, accent: Int, onClick: () -> Unit): Button {
+                  return Button(this).apply {
+                      text = label
+                      textSize = 13f
+                      setTypeface(null, Typeface.BOLD)
+                      setTextColor(accent)
+                      setPadding(24, 14, 24, 14)
+                      background = GradientDrawable().apply {
+                          setColor(Color.WHITE)
+                          cornerRadius = 24f
+                          setStroke(2, accent)
+                      }
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.WRAP_CONTENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply { marginEnd = 12 }
+                      setOnClickListener { onClick() }
+                  }
+              }
+
+              private fun navTab(label: String, onClick: () -> Unit): Button {
+                  return Button(this).apply {
+                      text = label
+                      textSize = 12f
+                      setTextColor(textDark)
+                      setBackgroundColor(Color.TRANSPARENT)
+                      setPadding(4, 8, 4, 8)
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                      setOnClickListener { onClick() }
+                  }
+              }
+
+              private fun appTile(icon: String, title: String, subtitle: String, accent: Int, onClick: () -> Unit): LinearLayout {
+                  return LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(22, 22, 22, 22)
+                      background = GradientDrawable().apply {
+                          setColor(Color.WHITE)
+                          cornerRadius = 20f
+                          setStroke(2, borderSubtle)
+                      }
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                          marginEnd = 10
+                          marginStart = 6
+                      }
+                      addView(TextView(this@MainActivity).apply {
+                          text = icon
+                          textSize = 26f
+                      })
+                      addView(TextView(this@MainActivity).apply {
+                          text = title
+                          textSize = 16f
+                          setTypeface(null, Typeface.BOLD)
+                          setTextColor(accent)
+                          setPadding(0, 8, 0, 2)
+                      })
+                      addView(TextView(this@MainActivity).apply {
+                          text = subtitle
+                          textSize = 12f
+                          setTextColor(textMuted)
+                      })
+                      setOnClickListener { onClick() }
+                  }
+              }
+
+              private fun m365Card(): LinearLayout {
+                  return LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(28, 24, 28, 24)
+                      background = GradientDrawable().apply {
+                          setColor(cardWhite)
+                          cornerRadius = 20f
+                          setStroke(2, borderSubtle)
+                      }
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply { bottomMargin = 20 }
+                  }
+              }
+          }
+
+          class SignatureDrawView(context: Context) : View(context) {
+              private val path = Path()
+              private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                  color = Color.parseColor("#1E3A8A")
+                  strokeWidth = 7f
+                  style = Paint.Style.STROKE
+                  strokeJoin = Paint.Join.ROUND
+                  strokeCap = Paint.Cap.ROUND
+              }
+
+              init {
+                  setBackgroundColor(Color.parseColor("#F8FAFC"))
+              }
+
+              override fun onTouchEvent(event: MotionEvent): Boolean {
+                  when (event.action) {
+                      MotionEvent.ACTION_DOWN -> path.moveTo(event.x, event.y)
+                      MotionEvent.ACTION_MOVE -> path.lineTo(event.x, event.y)
+                  }
+                  invalidate()
+                  return true
+              }
+
+              override fun onDraw(canvas: Canvas) {
+                  super.onDraw(canvas)
+                  canvas.drawPath(path, paint)
+              }
+
+              fun exportBitmap(): Bitmap {
+                  val bmp = Bitmap.createBitmap(maxOf(width, 400), maxOf(height, 200), Bitmap.Config.ARGB_8888)
+                  val c = Canvas(bmp)
+                  c.drawColor(Color.TRANSPARENT)
+                  c.drawPath(path, paint)
+                  return bmp
+              }
+          }
+          EOF
+
+      - name: Build Microsoft 365 Pocket APK
+        run: gradle assembleDebug
+
+      - name: Upload Microsoft 365 Pocket APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Microsoft365Pocket-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
