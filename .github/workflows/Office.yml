@@ -403,16 +403,22 @@ jobs:
                           XMLSlideShow().use { ppt ->
                               for (item in file.slides) {
                                   val slide = ppt.createSlide()
-                                  val titleBox = slide.createTextBox().apply {
-                                      anchor = java.awt.Rectangle(40, 30, 640, 80)
+                                  val titleBox = slide.createTextBox()
+                                  val titleXfrm = titleBox.xmlObject as org.openxmlformats.schemas.presentationml.x2006.main.CTShape
+                                  titleXfrm.spPr.addNewXfrm().apply {
+                                      addNewOff().apply { x = 508000L; y = 381000L }
+                                      addNewExt().apply { cx = 8128000L; cy = 1016000L }
                                   }
                                   val tr = titleBox.addNewTextParagraph().addNewTextRun()
                                   tr.setText(item.title)
                                   tr.fontSize = 28.0
                                   tr.isBold = true
 
-                                  val bodyBox = slide.createTextBox().apply {
-                                      anchor = java.awt.Rectangle(40, 130, 640, 360)
+                                  val bodyBox = slide.createTextBox()
+                                  val bodyXfrm = bodyBox.xmlObject as org.openxmlformats.schemas.presentationml.x2006.main.CTShape
+                                  bodyXfrm.spPr.addNewXfrm().apply {
+                                      addNewOff().apply { x = 508000L; y = 1651000L }
+                                      addNewExt().apply { cx = 8128000L; cy = 4572000L }
                                   }
                                   for (line in item.body.split("\n")) {
                                       val br = bodyBox.addNewTextParagraph().addNewTextRun()
